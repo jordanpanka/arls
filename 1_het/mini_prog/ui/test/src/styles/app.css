@@ -1,0 +1,149 @@
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Playfair Display', serif;
+  background: #f5f5f5;
+}
+
+#app {
+  height: 100%;
+  width: 100%;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.preact:hover {
+  filter: drop-shadow(0 0 2em #673ab8aa);
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+input{
+  width:400px;
+  height:50px;
+  border-radius:10px;
+
+}
+h1,h2{
+  font-family: 'Playfair Display', serif;
+}
+h2{
+  font-size:30px;
+}
+button{
+  height:50px;
+}
+
+/* Container */
+.input-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;              /* spacing a gombok között */
+  margin-top: 20px;
+}
+
+/* Input */
+.prompt input {
+  width: 500px;
+  height: 55px;
+  padding: 0 20px;
+  border-radius: 14px;
+  border: 2px solid #2d3748;
+  font-size: 1.05rem;
+  outline: none;
+  transition: 0.2s ease;
+}
+
+input:focus {
+  border-color: #4f8cff;
+  box-shadow: 0 0 0 4px rgba(79, 140, 255, 0.2);
+}
+
+/* Ikon gomb */
+.icon-btn {
+  width: 55px;
+  height: 55px;
+  border-radius: 14px;
+  border: none;
+  background: #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: #dbe3ea;
+  transform: translateY(-2px);
+}
+
+/* Küldés gomb */
+.send-btn {
+  height: 55px;
+  padding: 0 28px;
+  border-radius: 14px;
+  border: none;
+  background: #4f8cff;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.send-btn:hover {
+  background: #3a6fd8;
+  transform: translateY(-2px);
+}
+
+/* Válasz kártya */
+.answer {
+  margin-top: 40px;
+  background: white;
+  padding: 25px;
+  border-radius: 16px;
+  width: 700px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+}
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+     backdrop-filter: blur(3px); 
+}
+
+.modal-window {
+    background: white;
+    padding: 2rem;
+    border-radius: 16px;
+    width: 500px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.25);
+    animation: modalFadeIn 0.18s ease-out;
+
+}
+.main-window{
+  display: flex;
+}

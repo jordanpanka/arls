@@ -1,0 +1,12 @@
+node_modules/
+dist/
+dist-ssr/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Git / editor
+.git/
+.gitignore
+.vscode/
+.idea/

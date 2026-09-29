@@ -1,0 +1,26 @@
+# Virtualenvs - these are ~850MB and must never enter the build context
+.venv/
+venv/
+*_env/
+eval/ragas_env/
+**/site-packages/
+
+# Python caches
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.benchmarks/
+
+# Local config - the container gets its config from docker-compose env
+.env
+.env.*
+
+# Git / editor
+.git/
+.gitignore
+.vscode/
+.idea/

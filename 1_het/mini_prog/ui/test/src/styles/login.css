@@ -1,0 +1,90 @@
+/* Teljes oldal középre igazítása */
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f2f2f2;
+  font-family: Arial, sans-serif;
+}
+
+/* Külső container */
+.login-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top:65px;
+}
+
+/* Középső téglalap */
+.login-card {
+  background: white;
+  width: 350px;
+  padding: 40px 30px;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+
+/* Input mezők */
+.login-card input {
+  width: 100%;
+  height:25px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  outline: none;
+  transition: 0.2s;
+}
+
+.login-card input:focus {
+  border-color: #4a90e2;
+}
+
+/* Gombok */
+.btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
+  transition: 0.2s;
+  background-color:#7FA6E0;
+}
+
+.login-btn {
+  background-color:#7FA6E0;
+  color: white;
+}
+
+.login-btn:hover {
+  background-color: #357bd8;
+}
+
+.register-btn {
+  background-color: #e0e0e0;
+}
+
+.register-btn:hover {
+  background-color: #cfcfcf;
+}
+.avatar{
+  width: 250px;
+  height: 250px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.avatar img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

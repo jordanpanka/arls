@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+*.user
+*.rsuser
+
+# Git / editor
+.git/
+.gitignore
+.vscode/
+.idea/

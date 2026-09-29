@@ -1,0 +1,82 @@
+# Logs
+logs/
+*.log
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+coverage/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+ragas_env/
+**/.venv/
+**/venv/
+**/ragas_env/
+.venv/
+venv/
+ragas_env/
+**/ragas_env/
+
+# .NET
+bin/
+obj/
+.vs/
+*.user
+*.rsuser
+*.sln.docstates
+*.nupkg
+.nuget/
+packages/
+
+# SQLite / temp
+*.db
+*.sqlite
+*.cache
+
+# Neo4j
+data/
+logs/
+plugins/
+
+# Qdrant
+qdrant_storage/
+
+# MinIO
+minio_data/
+
+# Docker
+docker-compose.override.yml
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Test results
+TestResults/
+htmlcov/
+
+# Build artifacts
+build/
+publish/
+
+# OS files
+ehthumbs.db

@@ -1,0 +1,190 @@
+Nagyon jó kérdés 👌
+Ha RAG-gel foglalkozol (Önlab 👀), akkor érdemes több “rétegből” tájékozódni:
+
+* 📰 gyakorlati fejlesztői blogok
+* 📚 kutatási (research) oldalak
+* 🧪 open-source projektek
+* 🗣 community / fórumok
+
+Összeszedtem a legjobb forrásokat kategóriák szerint.
+
+---
+
+# 🔬 1️⃣ Research / Tudományos irány (új technikai áttörések)
+
+## 🌍 arXiv
+
+🔗 [https://arxiv.org](https://arxiv.org)
+
+Kulcsszavak:
+
+* "retrieval augmented generation"
+* "RAG"
+* "vector database"
+* "hybrid retrieval"
+* "reranking LLM"
+
+Ez az első hely, ahol az új RAG variációk megjelennek.
+
+---
+
+## 🤖 Papers With Code
+
+🔗 [https://paperswithcode.com](https://paperswithcode.com)
+
+Itt a research + implementáció együtt van.
+
+Nagyon hasznos:
+
+* Leaderboardok
+* Új retrieval modellek
+* Embedding modellek összehasonlítása
+
+---
+
+# 🧠 2️⃣ AI cégek blogjai (gyakorlatias, modern irányok)
+
+## 🟢 OpenAI Blog
+
+[https://openai.com/blog](https://openai.com/blog)
+RAG, tool use, function calling, agents
+
+## 🟡 Anthropic Blog
+
+[https://www.anthropic.com/news](https://www.anthropic.com/news)
+Nagyon sok kontextus-kezelési és hallucination csökkentési cikk.
+
+## 🟣 Cohere Blog
+
+[https://cohere.com/blog](https://cohere.com/blog)
+Sok retrieval + reranking tartalom.
+
+## 🔵 Hugging Face Blog
+
+[https://huggingface.co/blog](https://huggingface.co/blog)
+Embedding modellek, retrieval modellek.
+
+---
+
+# 🧩 3️⃣ Vector adatbázis gyártók (RAG gyakorlati oldala)
+
+Ezek blogjai tele vannak production RAG megoldásokkal:
+
+* Qdrant blog
+* Pinecone blog
+* Weaviate blog
+* Milvus blog
+
+Mindegyik rengeteg:
+
+* hybrid search
+* filtering
+* reranking
+* chunking stratégia
+* performance tuning
+
+---
+
+# 🛠 4️⃣ Fejlesztői RAG keretrendszerek
+
+## 🔗 LangChain
+
+[https://blog.langchain.dev](https://blog.langchain.dev)
+
+## 🔗 LlamaIndex
+
+[https://www.llamaindex.ai/blog](https://www.llamaindex.ai/blog)
+
+Itt jelennek meg:
+
+* advanced RAG
+* graph RAG
+* multi-hop retrieval
+* evaluation módszerek
+
+---
+
+# 💬 5️⃣ Community / Gyors trendkövetés
+
+## 🐦 Twitter / X
+
+Kövess ilyen témákat:
+
+* "RAG"
+* "LLM retrieval"
+* "embedding models"
+* "vector search"
+
+Nagyon sok cutting-edge infó ott jelenik meg először.
+
+---
+
+## 🧵 Reddit
+
+r/MachineLearning
+r/LocalLLaMA
+r/LLMDev
+
+---
+
+# 📊 6️⃣ Benchmark & összehasonlító oldalak
+
+## 🤗 Hugging Face Leaderboards
+
+Embedding model leaderboard
+
+## LMSYS Arena
+
+LLM összehasonlítás
+
+---
+
+# 🎯 Ha kifejezetten RAG fejlődési irány érdekel
+
+Most (2025-2026 körül) ezek a forró témák:
+
+* Hybrid search (BM25 + vector)
+* Reranking modellek (cross-encoder)
+* Graph RAG
+* Multi-query retrieval
+* Long context modellek (200k+ token)
+* Memory-augmented agents
+* RAG evaluation frameworkök
+* Chunking optimalizálás
+* Embedding compression
+
+---
+
+# 🧠 Haladóbb, ha tényleg mélyre akarsz menni
+
+Google keresés kulcsszavak:
+
+* "advanced RAG architectures"
+* "context compression RAG"
+* "retrieval reranking pipeline"
+* "LLM grounded generation"
+* "hallucination mitigation RAG"
+
+---
+
+# 🎓 Ha Önlab szempontból kérdezed
+
+Ha a cél:
+
+* szakdolgozat
+* technológiai összehasonlítás
+* modern RAG architektúra bemutatás
+
+Akkor kombináld:
+
+1. arXiv + PapersWithCode (elmélet)
+2. Qdrant / Pinecone blog (gyakorlat)
+3. LangChain / LlamaIndex blog (architektúra)
+4. GitHub trending (implementáció)
+
+---
+
+Ha szeretnéd, tudok adni egy konkrét:
+
+* 🔥 2026-os modern RAG architektúra roadmapet
+* vagy egy “mit érdemes beépíteni az Önlab projektedbe, hogy cutting-edge legyen” listát.
