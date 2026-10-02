@@ -5,6 +5,7 @@ import { useEffect, useState, type Dispatch, type StateUpdater } from "preact/ho
 import { buildTree, FolderTree, type FileItem } from "./FolderTree";
 import { NewProject } from "../project/NewProject";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import MenuOpenIcon from "@mui/icons-material/MenuOpen";
 import { RowMenu } from "../investigation/RowMenu";
 import type { Conversation } from "../chat/Chat";
 export type Project = {
@@ -31,11 +32,12 @@ type pbProps = {
     selectedConversationId: number,
     setSelectedConversationId: (n: number) => void,
     selectedInvId: number,
-    setSelectedInvId: (n: number) => void
-
+    setSelectedInvId: (n: number) => void,
+    open?: boolean,
+    onToggle?: () => void
 }
 const openwidth = 240;
-const closedWidth = 60;
+const closedWidth = 56;
 const HEADER_H = 64;
 export function ProjectBar(prop: pbProps
 ) {
@@ -48,7 +50,9 @@ export function ProjectBar(prop: pbProps
     //const [selectedProjectId, setSelectedProjectId] = useState<number>(-1);
     const [invOpen, setInvOpen] = useState<Record<number, boolean>>({});
     const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
-    const [open, setOpen] = useState(true);
+    const [openState, setOpenState] = useState(true);
+    const open = prop.open ?? openState;
+    const toggle = prop.onToggle ?? (() => setOpenState(o => !o));
     const [showInvWindow, setShowInvwindow] = useState(false);
     const [showProjWindow, setShowProjwindow] = useState(false);
     const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -175,23 +179,40 @@ export function ProjectBar(prop: pbProps
         inv.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     return (<>
-        <Drawer variant="persistent" anchor="left" open={open} sx={{
-            width: open ? openwidth : closedWidth, gap: 2, "& .MuiDrawer-paper": {
+        <Drawer variant="permanent" anchor="left" open={open} sx={{
+            width: open ? openwidth : closedWidth, flexShrink: 0, gap: 2, transition: "width 200ms", "& .MuiDrawer-paper": {
                 width: open ? openwidth : closedWidth,
                 boxSizing: "border-box",
                 top: HEADER_H,
                 height: `calc(100% - ${HEADER_H}px)`,
+                overflowX: "hidden",
+                transition: "width 200ms",
             },
         }}>
+            {!open ? (
+                <Box sx={{ display: "flex", justifyContent: "center", pt: 1 }}>
+                    <Tooltip title="Show investigations" placement="right">
+                        <IconButton aria-label="Show investigations" onClick={toggle} sx={{ height: "auto" }}>
+                            <MenuOpenIcon sx={{ transform: "scaleX(-1)" }} />
+                        </IconButton>
+                    </Tooltip>
+                </Box>
+            ) : (<>
             <Box sx={{
                 display: "flex", justifyContent: "space-between", height: 56, alignItems: "center",
-                marginLeft: 2, marginRight: 2
+                marginLeft: 2, marginRight: 1
             }}>
                 <Typography sx={{
                     lineHeight: 1,
                     fontFamily: "'Inter', sans-serif",
+                    flex: 1
                 }}>My Ivestigations</Typography>
                 <IconButton onClick={addInvestigation} /*sx={{color:"#0077b6"}}*/>+</IconButton>
+                <Tooltip title="Hide investigations">
+                    <IconButton aria-label="Hide investigations" onClick={toggle} sx={{ height: "auto" }}>
+                        <MenuOpenIcon fontSize="small" />
+                    </IconButton>
+                </Tooltip>
             </Box>
 
             <Box sx={{ display: "flex", marginLeft: 2, marginRight: 2 }}>
@@ -413,6 +434,7 @@ export function ProjectBar(prop: pbProps
                     )
                 })}
             </List>
+            </>)}
         </Drawer >
         <RowMenu
             type={menuState}

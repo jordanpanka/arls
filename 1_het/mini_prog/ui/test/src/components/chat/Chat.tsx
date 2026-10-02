@@ -2,11 +2,13 @@ import SendIcon from "@mui/icons-material/Send";
 import { Box, IconButton, Paper, TextField, Typography } from "@mui/material";
 import { useEffect, useState } from "preact/hooks";
 import { NewConversation } from "./NewConversation";
+import { AnswerText, EvidenceList } from "../evidence/EvidenceList";
+import { sanitizeEvidence, type Evidence } from "../evidence/types";
 type Message = {
     id: number,
     role: string,
-    content: string
-
+    content: string,
+    evidence?: unknown
 }
 export type Conversation = {
     id: number,
@@ -22,7 +24,7 @@ type cProps = {
     sellectedProjId: number,
     selectedCOnversationId: number,
     setSelectedConversationId: (id: number) => void,
-
+    onOpenEvidence?: (evidence: Evidence[], evidenceId: string) => void
 }
 export function ChatWindow(prop: cProps) {
     const [conversationsByProjId, setConversationsByProjId] = useState<Record<number, Conversation[]>>({});
@@ -46,7 +48,7 @@ export function ChatWindow(prop: cProps) {
         prop.setSelectedConversationId(data);
     }
 
-    async function addMessage(content: string, role: string) {
+    async function addMessage(content: string, role: string, evidence?: Evidence[]) {
         const token = localStorage.getItem("token");
         const r = await fetch("api/chat/conversations/messages/add", {
             method: "POST",
@@ -54,7 +56,7 @@ export function ChatWindow(prop: cProps) {
                 "Content-Type": "application/json",
                 "Authorization": "Bearer " + token
             },
-            body: JSON.stringify({ convId: prop.selectedCOnversationId, content, role })
+            body: JSON.stringify({ convId: prop.selectedCOnversationId, content, role, evidence: evidence?.length ? evidence : undefined })
         })
         await loadMessages();
     }
@@ -74,7 +76,7 @@ export function ChatWindow(prop: cProps) {
         const data = await r.json();
         setAnswer(data.answer);
         setPrompt("");
-        await addMessage(data.answer, "AI");
+        await addMessage(data.answer, "AI", sanitizeEvidence(data.evidence));
 
 
     }
@@ -178,6 +180,8 @@ export function ChatWindow(prop: cProps) {
 
                         }}>
                             {messagesByConvId[prop.selectedCOnversationId].map(m => {
+                                const evidence = m.role === "User" ? [] : sanitizeEvidence(m.evidence);
+                                const openEvidence = (id: string) => prop.onOpenEvidence?.(evidence, id);
                                 return <Box
                                     key={m.id}
                                     sx={{
@@ -195,7 +199,14 @@ export function ChatWindow(prop: cProps) {
                                             mb: "5px"
 
                                         }}>
-                                        <Typography sx={{ margin: "10px" }}>{m.content}</Typography>
+                                        {evidence.length > 0 ? (
+                                            <>
+                                                <AnswerText content={m.content} evidence={evidence} onOpen={openEvidence} />
+                                                <EvidenceList evidence={evidence} onOpen={openEvidence} />
+                                            </>
+                                        ) : (
+                                            <Typography sx={{ margin: "10px" }}>{m.content}</Typography>
+                                        )}
                                     </Paper>
                                 </Box>
                             })}

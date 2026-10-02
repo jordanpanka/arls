@@ -1,5 +1,6 @@
 using Minio;
 using Minio.DataModel.Args;
+using Minio.Exceptions;
 
 public class MinioService
 {
@@ -37,8 +38,7 @@ public class MinioService
             var f = files[i];
             var path = paths[i];
 
-            var objectName =
-                $"users/{userId}/investigations/{invId}/projects/{projectId}/original/{path}";
+            var objectName = ObjectName(userId, invId, projectId, path);
 
             using var stream = f.OpenReadStream();
 
@@ -50,6 +50,28 @@ public class MinioService
                     .WithObjectSize(f.Length)
                     .WithContentType(f.ContentType)
             );
+        }
+    }
+
+    public static string ObjectName(int userId, int invId, int projectId, string path) =>
+        $"users/{userId}/investigations/{invId}/projects/{projectId}/original/{path}";
+
+    public virtual async Task<byte[]?> ReadObjectAsync(string objectName)
+    {
+        try
+        {
+            using var buffer = new MemoryStream();
+            await _minio.GetObjectAsync(
+                new GetObjectArgs()
+                    .WithBucket(_bucket)
+                    .WithObject(objectName)
+                    .WithCallbackStream(stream => stream.CopyTo(buffer))
+            );
+            return buffer.ToArray();
+        }
+        catch (Exception ex) when (ex is ObjectNotFoundException or BucketNotFoundException)
+        {
+            return null;
         }
     }
 }

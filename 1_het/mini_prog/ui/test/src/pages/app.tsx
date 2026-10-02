@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import '../styles/app.css';
 import { ProjectBar, type Project } from '../components/layout/ProjectBar';
 import { AppBar, Avatar, Box, IconButton, Toolbar, Typography } from '@mui/material';
@@ -6,9 +6,11 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import { jwtDecode as decodeJwt } from "jwt-decode";
 import { useLocation } from "preact-iso";
 import { RightPanel } from '../components/layout/RightPanel';
-import { ChatWindow, type Conversation } from '../components/chat/Chat';
+import { type Conversation } from '../components/chat/Chat';
+import { ChatArea } from '../components/chat/ChatArea';
 
-const HEADER_H = 56;
+// Same value the sidebars use, so everything starts right below the AppBar.
+const HEADER_H = 64;
 export type JwtPayload = {
   uid: string
   email: string
@@ -33,6 +35,22 @@ export function App() {
   const { route } = useLocation();
 
   const [isnewConversation, setIsNewConversation] = useState(false)
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
+  const sidebarsBeforeEvidence = useRef<{ left: boolean, right: boolean } | null>(null);
+
+  // The evidence panel needs the room, so the sidebars step aside while it is open.
+  function handleEvidencePanel(open: boolean) {
+    if (open && !sidebarsBeforeEvidence.current) {
+      sidebarsBeforeEvidence.current = { left: leftOpen, right: rightOpen };
+      setLeftOpen(false);
+      setRightOpen(false);
+    } else if (!open && sidebarsBeforeEvidence.current) {
+      setLeftOpen(sidebarsBeforeEvidence.current.left);
+      setRightOpen(sidebarsBeforeEvidence.current.right);
+      sidebarsBeforeEvidence.current = null;
+    }
+  }
   useEffect(() => {
     if (!localStorage.getItem("token")) {
       route("/login");
@@ -118,7 +136,7 @@ export function App() {
           zIndex: (theme) => theme.zIndex.drawer + 1,
         }}
       >
-        <Toolbar sx={{ height: HEADER_H, backgroundColor: "#03045e" }}>
+        <Toolbar sx={{ height: HEADER_H, minHeight: `${HEADER_H}px !important`, backgroundColor: "#03045e" }}>
           <Box sx={{ display: 'flex', alignItems: "center", justifyContent: "space-between", width: "100%" }}>
             <Typography sx={{ fontWeight: 600, fontSize: 30, color: "white" }}>
               Code Mind
@@ -150,7 +168,7 @@ export function App() {
       <Box
         sx={{
           display: "flex",
-          height: `calc(100vh - 56px)`,
+          height: `calc(100vh - ${HEADER_H}px)`,
           mt: `${HEADER_H}px`,
           overflow: "hidden",
           minHeight: 0
@@ -170,6 +188,8 @@ export function App() {
           setSelectedConversationId={setSelectedConversationId}
           selectedInvId={selectedInvestigationId}
           setSelectedInvId={setSelectedInvestigationId}
+          open={leftOpen}
+          onToggle={() => setLeftOpen(o => !o)}
         />
 
         <Box
@@ -185,13 +205,14 @@ export function App() {
           }}
         >
           {/*selectedProjectId!=-1 && */(
-            <ChatWindow
+            <ChatArea
               newChat={isnewConversation}
               setNewChat={setIsNewConversation}
               sellectedProjId={selectedProjectId}
               selectedInvId={selectedInvestigationId}
               selectedCOnversationId={selectedConversationId}
               setSelectedConversationId={setSelectedConversationId}
+              onPanelOpenChange={handleEvidencePanel}
             />
           )}
         </Box>
@@ -204,6 +225,8 @@ export function App() {
             setProjOpen={setProjOpen}
             showWindowAddfile={showWindowFile}
             setShowWindowAddFile={setShowwindowFile}
+            open={rightOpen}
+            onToggle={() => setRightOpen(o => !o)}
           />
         )}
       </Box>

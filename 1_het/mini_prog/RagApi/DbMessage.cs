@@ -14,6 +14,8 @@ namespace ef
 
         public string Content {get; set;}
 
+        public string? Evidence {get; set;}
+
         [ForeignKey("ConversationID")]
         public DbConversation Conversation{get; set;}
     }

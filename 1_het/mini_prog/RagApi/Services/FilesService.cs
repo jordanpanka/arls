@@ -130,6 +130,22 @@ public class FileService
 
     
     public static string StoredFileKey(string relativePath, string name) => $"{relativePath}\n{name}";
+
+    public async Task<ProjectFileLookup> FindProjectFileAsync(int userId, int projectId, int fileId)
+    {
+        var project = await codeDbContext.Projects
+            .Where(p => p.ID == projectId)
+            .Select(p => new { p.InvestigationID, OwnerId = p.Investigation.UserID })
+            .FirstOrDefaultAsync();
+
+        if (project == null) return new ProjectFileLookup(FileLookupStatus.ProjectNotFound);
+        if (project.OwnerId != userId) return new ProjectFileLookup(FileLookupStatus.Forbidden);
+
+        var file = await codeDbContext.Files.FirstOrDefaultAsync(f => f.ID == fileId && f.ProjectID == projectId);
+        if (file == null) return new ProjectFileLookup(FileLookupStatus.FileNotFound);
+
+        return new ProjectFileLookup(FileLookupStatus.Found, file, project.OwnerId, project.InvestigationID);
+    }
     public async Task<ServiceResult> SaveFileAsZip(int pid, IFormFile file, string path)
     {
         using var archive = new ZipArchive(file.OpenReadStream(), ZipArchiveMode.Read);

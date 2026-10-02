@@ -15,12 +15,15 @@ vi.mock("@mui/material", () => ({
   DialogTitle: (p: any) => <h2>{p.children}</h2>,
   DialogContent: (p: any) => <div>{p.children}</div>,
   DialogActions: (p: any) => <div>{p.children}</div>,
+  Tooltip: (p: any) => <>{p.children}</>,
 }));
 
 vi.mock("@mui/icons-material", () => ({
   AttachFile: () => <span>attach</span>,
   ExpandLess: () => <span>less</span>,
   ExpandMore: () => <span>more</span>,
+  FolderOutlined: () => <span>folder</span>,
+  MenuOpen: () => <span>menu</span>,
 }));
 
 vi.mock("../FolderTree", () => ({

@@ -6,4 +6,6 @@ public class Message
     public DateTime CreatedAtUtc { get; set; }
 
     public string Content {get; set;}
+
+    public System.Text.Json.JsonElement? Evidence { get; set; }
 }

@@ -1,0 +1,31 @@
+.evidence-highlight {
+  background: rgba(0, 119, 182, 0.08);
+}
+
+.evidence-highlight-active {
+  background: rgba(0, 119, 182, 0.16);
+}
+
+.evidence-marker {
+  border-left: 3px solid #0077B6;
+  margin-left: 3px;
+}
+
+.evidence-cite {
+  display: inline-block;
+  margin: 0 2px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 8px;
+  background: #e3effa;
+  color: #03045e;
+  font: 600 11px/18px 'Inter', sans-serif;
+  vertical-align: 1px;
+  cursor: pointer;
+  height: auto;
+}
+
+.evidence-cite:hover {
+  background: #88B8F9;
+  color: white;
+}

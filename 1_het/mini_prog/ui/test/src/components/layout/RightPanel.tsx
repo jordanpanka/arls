@@ -1,12 +1,12 @@
-import { Box, Collapse, Drawer, IconButton, List, ListItemButton, ListItemText, Typography } from "@mui/material";
+import { Box, Collapse, Drawer, IconButton, List, ListItemButton, ListItemText, Tooltip, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { AttachFile, ExpandLess, ExpandMore } from "@mui/icons-material";
+import { AttachFile, ExpandLess, ExpandMore, FolderOutlined, MenuOpen } from "@mui/icons-material";
 import { UploadFile, type RepoForm } from "../upload/uploadFile";
 import type { Project } from "./ProjectBar";
 import { buildTree, FolderTree, type FileItem } from "./FolderTree";
 
 const openWidth = 240;
-const closedWidth = 60;
+const closedWidth = 56;
 const HEADER_H = 64;
 
 /** Ahogy a backend RepositoryIngestService adja vissza. */
@@ -63,11 +63,15 @@ type RightPanelProps = {
     projOpen: Record<number, boolean>,
     setProjOpen: React.Dispatch<React.SetStateAction<Record<number, boolean>>>
     showWindowAddfile:boolean,
-    setShowWindowAddFile:(b:boolean)=>void
+    setShowWindowAddFile:(b:boolean)=>void,
+    open?: boolean,
+    onToggle?: () => void
 }
 
 export function RightPanel(rpProps: RightPanelProps) {
-    const [open, setOpen] = useState(true);
+    const [openState, setOpenState] = useState(true);
+    const open = rpProps.open ?? openState;
+    const toggle = rpProps.onToggle ?? (() => setOpenState(o => !o));
     const [filesByProjId, setFilesByProjId] = useState<Record<number, FileItem[]>>([]);
     //const [showWindowAddfile, setShowWindowAddFile] = useState(false);
     const [uploadResult, setUploadResult] = useState("");
@@ -248,21 +252,38 @@ export function RightPanel(rpProps: RightPanelProps) {
     const files = filesByProjId[rpProps.projectSelected.id] ?? [];
     const tree = buildTree(files);
     return (<>
-        <Drawer variant="persistent" anchor="right" open={open} sx={{
-            width: open ? openWidth : closedWidth, gap: 2, "& .MuiDrawer-paper": {
+        <Drawer variant="permanent" anchor="right" open={open} sx={{
+            width: open ? openWidth : closedWidth, flexShrink: 0, gap: 2, transition: "width 200ms", "& .MuiDrawer-paper": {
                 width: open ? openWidth : closedWidth,
                 boxSizing: "border-box",
                 top: HEADER_H,
                 height: `calc(100% - ${HEADER_H}px)`,
+                overflowX: "hidden",
+                transition: "width 200ms",
             },
         }}>
+            {!open ? (
+                <Box sx={{ display: "flex", justifyContent: "center", pt: 1 }}>
+                    <Tooltip title="Show files" placement="left">
+                        <IconButton aria-label="Show files" onClick={toggle} sx={{ height: "auto" }}>
+                            <FolderOutlined />
+                        </IconButton>
+                    </Tooltip>
+                </Box>
+            ) : (<>
             <Box sx={{
                 display: "flex", justifyContent: "space-between", height: 56, alignItems: "center",
-                marginLeft: 2, marginRight: 2
+                marginLeft: 1, marginRight: 2
             }}>
+                <Tooltip title="Hide files">
+                    <IconButton aria-label="Hide files" onClick={toggle} sx={{ height: "auto" }}>
+                        <MenuOpen fontSize="small" sx={{ transform: "scaleX(-1)" }} />
+                    </IconButton>
+                </Tooltip>
                 <Typography sx={{
                     lineHeight: 1,
                     fontFamily: "'Inter', sans-serif",
+                    flex: 1
                 }}>Files</Typography>
                 <IconButton onClick={addFile}>+</IconButton>
 
@@ -284,6 +305,7 @@ export function RightPanel(rpProps: RightPanelProps) {
                     </Collapse>
                 </div>
             </List>
+            </>)}
         </Drawer>
         {rpProps.showWindowAddfile && <UploadFile setFile={setFile} link={link} open={rpProps.showWindowAddfile} setOpen={rpProps.setShowWindowAddFile}
             repo={repo} setRepo={setRepo} importRepo={importRepo} busy={busy} result={uploadResult} ></UploadFile>}

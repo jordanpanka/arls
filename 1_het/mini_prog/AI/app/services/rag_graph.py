@@ -8,6 +8,13 @@ from app.config import GEN_MODEL_CLOUD, OLLAMA_API_KEY, OLLAMA_BASE_URL, QDRANT_
 from app.services.file_service import FileService
 from app.services.ollama_call import call_llm
 from app.services.neo4j_service import Neo4jService
+from app.services.evidence_service import (
+    build_code_evidence,
+    build_graph_evidence,
+    normalize_path,
+    result_location,
+    subgraph_to_text,
+)
 
 
 class RagState(TypedDict, total=False):
@@ -34,6 +41,12 @@ class RagState(TypedDict, total=False):
     results: List[dict]
     top_results: List[dict]
     graph_context: List[str]
+    graph_subgraphs: List[dict]
+
+    code_evidence: List[dict]
+    graph_evidence: dict | None
+    evidence: List[dict]
+    source_ids: dict
 
     context: str
     answer: str
@@ -340,20 +353,20 @@ async def search_plan(state: RagState) -> RagState:
     }
 def route_after_filter(state: RagState) -> str:
     if not state.get("top_results"):
-        return "build_context"
+        return "prepare_evidence"
     if state.get("use_graph", False):
         return "search_knowledge_graph"
 
     if state.get("needs_rerank", False):
         return "rerank_results"
 
-    return "build_context"
+    return "prepare_evidence"
 
 def route_after_graph(state: RagState) -> str:
     if state.get("needs_rerank", False):
         return "rerank_results"
 
-    return "build_context"
+    return "prepare_evidence"
     
 async def embed_question(state: RagState) -> RagState:
     text_for_embedding = (
@@ -476,22 +489,48 @@ async def filter_results(state: RagState) -> RagState:
     }
 
 
+async def prepare_evidence(state: RagState) -> RagState:
+    code_evidence, source_ids = build_code_evidence(state.get("top_results", []))
+    graph_evidence = build_graph_evidence(state.get("graph_subgraphs", []))
+
+    evidence = [item.model_dump() for item in code_evidence]
+    if graph_evidence is not None:
+        evidence.append(graph_evidence.model_dump())
+
+    return {
+        **state,
+        "code_evidence": [item.model_dump() for item in code_evidence],
+        "graph_evidence": graph_evidence.model_dump() if graph_evidence else None,
+        "evidence": evidence,
+        "source_ids": source_ids
+    }
+
+
 async def build_context(state: RagState) -> RagState:
     top_results = state.get("top_results", [])
+    source_ids = state.get("source_ids")
+    if source_ids is None:
+        _, source_ids = build_code_evidence(top_results)
 
     context_parts = []
     #test
     retrieved_contexts = []
-    
+
 
     for index, result in enumerate(top_results, start=1):
         payload = result.get("payload", {})
+        location = result_location(result)
 
-        doc_name = payload.get("docName") or "unknown document"
-        path = payload.get("path") or ""
+        path = location["filePath"]
         kind = payload.get("kind") or ""
         name = payload.get("name") or ""
         matched_vector = result.get("matched_vector") or ""
+        source_id = source_ids.get(normalize_path(path)) or f"UNLISTED_{index}"
+
+        if location["startLine"]:
+            lines = f"{location['startLine']}-{location['endLine'] or location['startLine']}"
+        else:
+            lines = "unknown"
 
         text = (
             payload.get("content")
@@ -515,13 +554,13 @@ async def build_context(state: RagState) -> RagState:
         # A cimkek is angolul: a kontextus nyelve erosen befolyasolja, milyen
         # nyelven valaszol a modell, es itt angol valaszt akarunk.
         context_parts.append(
-            f"[Source {index}: {doc_name}]\n"
-            f"Path: {path}\n"
+            f"[{source_id}]\n"
+            f"File: {path}\n"
+            f"Lines: {lines}\n"
+            f"Symbol: {name}\n"
             f"Kind: {kind}\n"
-            f"Name: {name}\n"
-            f"Matched vector: {matched_vector}\n"
-            f"Score: {result.get('score', 0)}\n\n"
-            f"{text}"
+            f"Matched vector: {matched_vector}\n\n"
+            f"Code:\n{text}"
         )
         
         #test
@@ -579,6 +618,10 @@ async def generate_answer(state: RagState) -> RagState:
     - If there are several sources, combine the information.
     - Phrase the answer naturally, do not just copy the context back.
     - Never translate code fragments, identifiers or file paths.
+    - When a statement is directly supported by a source, reference it with its
+      identifier in square brackets, e.g. [SOURCE_1].
+    - Only reference source identifiers that appear in the context.
+    - Do not invent file names, symbols, paths or source identifiers.
 
     QUESTION TYPE:
     {state.get("question_type", "unknown")}
@@ -644,6 +687,7 @@ async def translate_answer(state: RagState) -> RagState:
     - Do NOT translate code fragments, identifiers, function names, class names,
       file paths or file extensions - copy them exactly as they are.
     - Keep the structure of the text: line breaks, lists and code blocks stay.
+    - Keep source references such as [SOURCE_1] exactly as they are.
     - Use natural, fluent {language_name}, not a word by word translation.
 
     Text:
@@ -676,8 +720,14 @@ async def translate_answer(state: RagState) -> RagState:
 async def search_knowledge_graph(state: RagState) -> RagState:
     top_results = state.get("top_results", [])
     graph_context = []
+    graph_subgraphs = []
+    seen = set()
 
-    neo4j = Neo4jService()
+    try:
+        neo4j = Neo4jService()
+    except Exception as e:
+        print("search_knowledge_graph hiba:", e)
+        return {**state, "graph_context": [], "graph_subgraphs": []}
 
     try:
         for result in top_results:
@@ -694,30 +744,32 @@ async def search_knowledge_graph(state: RagState) -> RagState:
             if kind not in ["function", "method", "class"]:
                 continue
 
-            if not name or not path:
+            if not name or not path or (kind, name, path) in seen:
+                continue
+            seen.add((kind, name, path))
+
+            lookup = neo4j.get_class_subgraph if kind == "class" else neo4j.get_function_subgraph
+            try:
+                subgraph = lookup(user_id, investigation_id, project_id, name, path)
+            except Exception as e:
+                print("Neo4j lekerdezes hiba:", e)
                 continue
 
-            context_items = neo4j.get_function_context(
-                user_id=user_id,
-                investigation_id=investigation_id,
-                project_id=project_id,
-                function_name=name,
-                file_path=path
-            )
+            if not subgraph:
+                continue
 
-            if context_items:
-                graph_context.append(
-                    f"Knowledge graph match for: {name}\n"
-                    f"Path: {path}\n"
-                    f"Relations:\n{json.dumps(context_items, ensure_ascii=False, indent=2, default=str)}"
-                )
+            graph_subgraphs.append(subgraph)
+            text = subgraph_to_text(subgraph)
+            if text:
+                graph_context.append(text)
 
     finally:
         neo4j.close()
 
     return {
         **state,
-        "graph_context": graph_context
+        "graph_context": graph_context,
+        "graph_subgraphs": graph_subgraphs
     }
 async def rerank_results(state: RagState) -> RagState:
     top_results = state.get("top_results", [])
@@ -746,6 +798,7 @@ builder.add_node("search_qdrant", search_qdrant)
 builder.add_node("filter_results", filter_results)
 builder.add_node("search_knowledge_graph", search_knowledge_graph)
 builder.add_node("rerank_results", rerank_results)
+builder.add_node("prepare_evidence", prepare_evidence)
 builder.add_node("build_context", build_context)
 builder.add_node("generate_answer", generate_answer)
 builder.add_node("translate_answer", translate_answer)
@@ -764,7 +817,7 @@ builder.add_conditional_edges(
     {
         "search_knowledge_graph": "search_knowledge_graph",
         "rerank_results": "rerank_results",
-        "build_context": "build_context"
+        "prepare_evidence": "prepare_evidence"
     }
 )
 
@@ -773,11 +826,12 @@ builder.add_conditional_edges(
     route_after_graph,
     {
         "rerank_results": "rerank_results",
-        "build_context": "build_context"
+        "prepare_evidence": "prepare_evidence"
     }
 )
 
-builder.add_edge("rerank_results", "build_context")
+builder.add_edge("rerank_results", "prepare_evidence")
+builder.add_edge("prepare_evidence", "build_context")
 builder.add_edge("build_context", "generate_answer")
 builder.add_edge("generate_answer", "translate_answer")
 builder.add_edge("translate_answer", END)

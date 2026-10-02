@@ -48,7 +48,44 @@ public class FilesController : ControllerBase
         await minioService.UploadAsync(int.Parse(uidClaim),newFileList,newFilePath,projectId, invId);
 
         return Ok();
-        
+
+    }
+
+    [Authorize]
+    [HttpGet("/api/projects/{projectId:int}/files/{fileId:int}")]
+    public async Task<IActionResult> GetFileContent(int projectId, int fileId)
+    {
+        var uidClaim = User.FindFirst("uid")?.Value;
+        if (uidClaim == null || !int.TryParse(uidClaim, out var userId)) return Unauthorized();
+
+        var lookup = await filesService.FindProjectFileAsync(userId, projectId, fileId);
+        switch (lookup.Status)
+        {
+            case FileLookupStatus.Forbidden:
+                return StatusCode(StatusCodes.Status403Forbidden, "You don't have access to this project.");
+            case FileLookupStatus.ProjectNotFound:
+            case FileLookupStatus.FileNotFound:
+                return NotFound("The file doesn't exist in this project.");
+        }
+
+        var file = lookup.File!;
+        var bytes = await minioService.ReadObjectAsync(
+            MinioService.ObjectName(lookup.OwnerId, lookup.InvestigationId, projectId, file.RelativePath));
+
+        if (bytes == null) return NotFound("The original file is no longer in storage.");
+
+        if (Array.IndexOf(bytes, (byte)0, 0, Math.Min(bytes.Length, 8000)) >= 0)
+            return StatusCode(StatusCodes.Status415UnsupportedMediaType, "This file type can't be previewed.");
+
+        using var reader = new StreamReader(new MemoryStream(bytes), System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        var content = await reader.ReadToEndAsync();
+
+        return Ok(new ProjectFileContent(
+            file.ID.ToString(),
+            file.Name,
+            file.RelativePath,
+            SourceLanguage.FromPath(file.RelativePath),
+            content));
     }
 
 }

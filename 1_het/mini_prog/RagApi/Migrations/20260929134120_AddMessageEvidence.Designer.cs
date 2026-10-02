@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ef;
 
@@ -11,9 +12,11 @@ using ef;
 namespace RagApi.Migrations
 {
     [DbContext(typeof(CodeDbContext))]
-    partial class CodeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260929134120_AddMessageEvidence")]
+    partial class AddMessageEvidence
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -1,6 +1,6 @@
 import httpx
 
-from app.models.models import ServiceResult, ChatRequest
+from app.models.models import ServiceResult, ChatRequest, ChatResponse
 from app.services.file_service import FileService
 from app.config import QDRANT_URL, QDRANT_COLLECTION, GEN_MODEL, OLLAMA_URL
 from app.services.rag_graph import rag_graph
@@ -100,6 +100,8 @@ async def send_message_async_langgraph(prompt: ChatRequest) -> ServiceResult:
         "project_id": prompt.projectId
     })
 
-    return ServiceResult.success({
-        "answer": result.get("answer", "Nem találom a dokumentumokban.")
-    })
+    response = ChatResponse(
+        answer=result.get("answer", "Nem találom a dokumentumokban."),
+        evidence=result.get("evidence") or []
+    )
+    return ServiceResult.success(response.model_dump())

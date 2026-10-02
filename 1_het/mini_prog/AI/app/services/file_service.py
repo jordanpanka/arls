@@ -18,6 +18,7 @@ from typing import List
 from fastapi import UploadFile, Form, File
 
 from app.services.neo4j_service import Neo4jService
+from app.services.evidence_service import language_for_path
 
 class FileService:
 
@@ -88,6 +89,15 @@ class FileService:
                 break
         
         return chunks
+
+    def chunk_text_with_lines(self, text: str, chunk_length: int, redundance: int) -> list[tuple[str, int, int]]:
+        step = chunk_length - redundance
+        result = []
+        for index, chunk in enumerate(self.chunk_text(text, chunk_length, redundance)):
+            start_line = text.count("\n", 0, index * step) + 1
+            end_line = start_line + chunk.rstrip("\n").count("\n")
+            result.append((chunk, start_line, end_line))
+        return result
 
     async def embed(self, http: httpx.AsyncClient, text: str) -> list[float]:
        
@@ -208,7 +218,8 @@ class FileService:
                                         "summary": node.metadata["summary"],
                                         "start_line": node.metadata.get("start_line"),
                                         "end_line": node.metadata.get("end_line"),
-                                        "ts_type": node.metadata.get("ts_type")
+                                        "ts_type": node.metadata.get("ts_type"),
+                                        "language": language_for_path(paths[i])
                                     }
                                         
                                 })
@@ -266,8 +277,10 @@ class FileService:
                                         "docName": files[i].filename,
                                         "path": node.metadata.get("path", paths[i]),
                                         "kind": type,
-                                        "text": node.text
-
+                                        "text": node.text,
+                                        "start_line": node.metadata.get("start_line"),
+                                        "end_line": node.metadata.get("end_line"),
+                                        "language": language_for_path(paths[i])
                                     }
                                 })
                 
@@ -363,19 +376,21 @@ class FileService:
 
     async def process_doc_file(self,file: UploadFile, path:str)->List[TextNode]:
            
-            if path.lower().endswith(".pdf"):
+            is_pdf = path.lower().endswith(".pdf")
+            if is_pdf:
                 text=await self.extract_text_from_pdf(file)
             else:
                 text=await self.extract_text_from_plain(file)
 
-            chunks=self.chunk_text(text, 800, 120)
             tsnodes=[]
-            for chunk in chunks:
+            for chunk, start_line, end_line in self.chunk_text_with_lines(text, 800, 120):
+                # Extracted PDF text has no line mapping to the original file.
                 node=TextNode(
                     text=chunk,
                     metadata={
-                        "path":path
-                        
+                        "path":path,
+                        "start_line": None if is_pdf else start_line,
+                        "end_line": None if is_pdf else end_line
                     }
                 )
                 tsnodes.append(node)

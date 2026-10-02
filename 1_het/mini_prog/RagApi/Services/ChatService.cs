@@ -87,12 +87,16 @@ public class ChatService
         var exist = await db.Conversations.AnyAsync(x => x.ID == data.convId);
         if (!exist) return ServiceResult.Fail("The conversation doesn't exist.");
 
+        var evidence = data.evidence is { ValueKind: JsonValueKind.Array } element ? element.GetRawText() : null;
+        if (evidence != null && evidence.Length > MaxEvidenceLength) evidence = null;
+
         var message = new DbMessage
         {
             ConversationID = data.convId,
             Role = data.role,
             CreatedAtUtc = DateTime.UtcNow,
-            Content = data.content
+            Content = data.content,
+            Evidence = evidence
         };
         db.Messages.Add(message);
         await db.SaveChangesAsync();
@@ -104,18 +108,44 @@ public class ChatService
         var exist = await db.Conversations.AnyAsync(x => x.ID == data.id);
         if (!exist) return ServiceResult.Fail("The conversation doesn't exist.");
 
-        var messages = await db.Messages
+        var rows = await db.Messages
         .Where(x => x.ConversationID == data.id)
-        .Select(m => new Message
+        .Select(m => new
+        {
+            m.ID,
+            m.Role,
+            m.CreatedAtUtc,
+            m.Content,
+            m.Evidence
+        }).ToListAsync();
+
+        var messages = rows.Select(m => new Message
         {
             ID = m.ID,
             Role = m.Role,
             CreatedAtUtc = m.CreatedAtUtc,
-            Content = m.Content
-        }).ToListAsync();
+            Content = m.Content,
+            Evidence = ParseStoredEvidence(m.Evidence)
+        }).ToList();
 
         return ServiceResult.Success(messages);
     }
+    private const int MaxEvidenceLength = 256 * 1024;
+
+    private static JsonElement? ParseStoredEvidence(string? raw)
+    {
+        if (string.IsNullOrEmpty(raw)) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(raw);
+            return doc.RootElement.Clone();
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     private async Task<float[]> Embed(HttpClient http, string text)
     {
 
@@ -228,18 +258,59 @@ public class ChatService
 
         // JSON parse
         var json = JsonDocument.Parse(responseBody);
+        var data = json.RootElement.GetProperty("data");
 
-        var answer = json.RootElement
-                        .GetProperty("data")
+        var answer = data
                         .GetProperty("answer")
                         .GetString() ?? "";
-        return ServiceResult.Success(new { answer });
+
+        var evidence = data.TryGetProperty("evidence", out var evidenceElement)
+            ? EvidenceJson.ParseList(evidenceElement)
+            : new List<Evidence>();
+
+        await AttachFileIdsAsync(prompt.projectId, evidence);
+
+        return ServiceResult.Success(new ChatAnswer(answer, evidence));
     }
     catch (Exception ex)
     {
         return ServiceResult.Fail($"Chat failed: {ex.Message}");
     }
 }
+
+    // The AI service only knows repository paths; file IDs live in MSSQL.
+    public async Task AttachFileIdsAsync(int projectId, List<Evidence> evidence)
+    {
+        var codeItems = evidence.OfType<CodeEvidence>().ToList();
+        var graphNodes = evidence.OfType<GraphEvidence>().SelectMany(g => g.Nodes).Where(n => n.FilePath != null).ToList();
+
+        var paths = codeItems.Select(c => EvidenceJson.NormalizePath(c.FilePath))
+            .Concat(graphNodes.Select(n => EvidenceJson.NormalizePath(n.FilePath)))
+            .Where(p => p != "")
+            .Distinct()
+            .ToList();
+
+        if (paths.Count == 0) return;
+
+        var ids = (await db.Files
+                .Where(f => f.ProjectID == projectId && paths.Contains(f.RelativePath))
+                .Select(f => new { f.ID, f.RelativePath })
+                .ToListAsync())
+            .GroupBy(f => f.RelativePath)
+            .ToDictionary(g => g.Key, g => g.Min(f => f.ID).ToString());
+
+        foreach (var item in codeItems)
+        {
+            item.FilePath = EvidenceJson.NormalizePath(item.FilePath);
+            item.FileId = ids.GetValueOrDefault(item.FilePath);
+        }
+
+        foreach (var node in graphNodes)
+        {
+            node.FilePath = EvidenceJson.NormalizePath(node.FilePath);
+            node.FileId = ids.GetValueOrDefault(node.FilePath);
+        }
+    }
 }
 
 
