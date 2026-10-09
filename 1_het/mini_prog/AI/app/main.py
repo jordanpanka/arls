@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.routers import chat_router
 from app.routers import file_router
+from app.routers import metrics_router
 
 app = FastAPI(title="AI Service")
 
@@ -10,3 +11,4 @@ def health():
 
 app.include_router(chat_router.router)
 app.include_router(file_router.router)
+app.include_router(metrics_router.router)

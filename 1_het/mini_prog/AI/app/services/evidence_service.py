@@ -1,7 +1,15 @@
 import os
 import re
 
-from app.models.models import CodeEvidence, GraphEdge, GraphEvidence, GraphNode, Highlight
+from app.models.models import (
+    CodeEvidence,
+    GraphEdge,
+    GraphEvidence,
+    GraphNode,
+    Highlight,
+    MetricEvidence,
+    MetricItem,
+)
 
 LANGUAGE_BY_EXTENSION = {
     ".py": "python",
@@ -245,3 +253,190 @@ def subgraph_to_text(subgraph: dict) -> str:
             lines.append(f"- {source.label} -[{edge['type']}]-> {target.label}")
 
     return "\n".join(lines) if len(lines) > 1 else ""
+
+
+# (key, label, unit, category key) - the order is the order shown to the LLM and the UI.
+REPOSITORY_METRIC_ITEMS = [
+    ("totalFiles", "Files analyzed", None, None),
+    ("totalNloc", "Lines of code (NLOC)", "lines", None),
+    ("totalFunctions", "Functions", None, None),
+    ("totalClasses", "Class-like declarations", None, None),
+    ("averageComplexity", "Average cyclomatic complexity", None, None),
+    ("maxComplexity", "Maximum cyclomatic complexity", None, "maxComplexityCategory"),
+    ("highComplexityFunctionCount", "High-complexity functions", None, None),
+    ("longFunctionCount", "Long functions", None, None),
+    ("manyParameterFunctionCount", "Functions with many parameters", None, None),
+    ("dependencyCount", "File dependencies", None, None),
+    ("cycleCount", "Dependency cycles", None, None),
+    ("averageFanIn", "Average file fan-in", None, None),
+    ("averageFanOut", "Average file fan-out", None, None),
+    ("maxFanIn", "Maximum file fan-in", None, None),
+    ("maxFanOut", "Maximum file fan-out", None, None),
+    ("maxDependencyDepth", "Maximum dependency depth", None, None),
+]
+
+FILE_METRIC_ITEMS = [
+    ("nloc", "Lines of code (NLOC)", "lines", None),
+    ("functionCount", "Functions", None, None),
+    ("classCount", "Class-like declarations", None, None),
+    ("averageComplexity", "Average cyclomatic complexity", None, None),
+    ("maxComplexity", "Maximum cyclomatic complexity", None, "complexityCategory"),
+    ("highComplexityFunctionCount", "High-complexity functions", None, None),
+    ("maxFunctionNloc", "Longest function (NLOC)", "lines", None),
+    ("longFunctionCount", "Long functions", None, None),
+    ("manyParameterFunctionCount", "Functions with many parameters", None, None),
+    ("fanIn", "Fan-in (files depending on it)", None, None),
+    ("fanOut", "Fan-out (files it depends on)", None, None),
+    ("importCount", "Import statements", None, None),
+]
+
+FUNCTION_METRIC_ITEMS = [
+    ("cyclomaticComplexity", "Cyclomatic complexity", None, "complexityCategory"),
+    ("nloc", "Lines of code (NLOC)", "lines", None),
+    ("parameterCount", "Parameters", None, None),
+    ("tokenCount", "Tokens", None, None),
+    ("length", "Length", "lines", None),
+    ("fanIn", "Fan-in (calling functions)", None, None),
+    ("fanOut", "Fan-out (called functions)", None, None),
+]
+
+def _metric_items(source: dict, spec: list[tuple]) -> list[MetricItem]:
+    items = []
+    for key, label, unit, category_key in spec:
+        value = source.get(key)
+        if value is None:
+            continue
+        if isinstance(value, float):
+            value = round(value, 2)
+        items.append(MetricItem(
+            key=key,
+            label=label,
+            value=value,
+            unit=unit,
+            category=source.get(category_key) if category_key else None,
+        ))
+    return items
+
+
+def _dedupe(rows: list[dict], key) -> list[dict]:
+    seen, unique = set(), []
+    for row in rows:
+        k = key(row)
+        if k not in seen:
+            seen.add(k)
+            unique.append(row)
+    return unique
+
+
+def build_metric_evidence(metrics: dict | None, max_files: int = 5, max_functions: int = 5) -> list[MetricEvidence]:
+    """Turns the backend's metrics payload into METRIC_n evidence.
+
+    Repository summary first, then files, then functions; directly requested
+    entities come before hotspot rankings.
+    """
+    if not metrics:
+        return []
+
+    analysis = metrics.get("analysis") or {}
+    common = {
+        "analysisId": analysis.get("analysisId"),
+        "analyzedAt": analysis.get("completedAt"),
+        "commitSha": analysis.get("commitSha") or None,
+    }
+
+    evidence: list[MetricEvidence] = []
+
+    def next_id() -> str:
+        return f"METRIC_{len(evidence) + 1}"
+
+    repository = metrics.get("repository")
+    if repository:
+        evidence.append(MetricEvidence(
+            id=next_id(), scope="repository", title="Repository summary",
+            items=_metric_items(repository, REPOSITORY_METRIC_ITEMS), **common,
+        ))
+
+    files = _dedupe(
+        (metrics.get("files") or []) + (metrics.get("hotspotFiles") or []),
+        key=lambda f: normalize_path(f.get("path")),
+    )[:max_files]
+    for f in files:
+        path = normalize_path(f.get("path"))
+        evidence.append(MetricEvidence(
+            id=next_id(), scope="file", title=os.path.basename(path) or path,
+            fileId=str(f["fileId"]) if f.get("fileId") is not None else None,
+            fileName=os.path.basename(path), filePath=path,
+            items=_metric_items(f, FILE_METRIC_ITEMS), **common,
+        ))
+
+    functions = _dedupe(
+        (metrics.get("functions") or []) + (metrics.get("hotspotFunctions") or []),
+        key=lambda fn: (normalize_path(fn.get("filePath")), fn.get("name"), fn.get("startLine")),
+    )[:max_functions]
+    for fn in functions:
+        path = normalize_path(fn.get("filePath"))
+        symbol = f"{fn['className']}.{fn.get('name')}" if fn.get("className") else fn.get("name")
+        evidence.append(MetricEvidence(
+            id=next_id(), scope="function", title=f"{symbol}()",
+            fileId=str(fn["fileId"]) if fn.get("fileId") is not None else None,
+            fileName=os.path.basename(path), filePath=path, symbol=symbol,
+            startLine=_line(fn.get("startLine")), endLine=_line(fn.get("endLine")),
+            items=_metric_items(fn, FUNCTION_METRIC_ITEMS), **common,
+        ))
+
+    return evidence
+
+
+def _format_value(item: MetricItem) -> str:
+    if item.value is None:
+        return "unavailable (not measured by the current analyzers)"
+    value = f"{item.value:,}" if isinstance(item.value, int) else f"{item.value:g}"
+    if item.unit:
+        value += f" {item.unit}"
+    if item.category:
+        value += f" (category: {item.category})"
+    return value
+
+
+def metric_evidence_to_text(evidence: list[MetricEvidence], thresholds: dict | None = None) -> str:
+    if not evidence:
+        return ""
+
+    first = evidence[0]
+    source = "Measured by static analysis (Lizard) and the knowledge graph"
+    if first.analysisId:
+        source += f", analysis #{first.analysisId}"
+    if first.analyzedAt:
+        source += f", completed {first.analyzedAt}"
+    if first.commitSha:
+        source += f", commit {first.commitSha[:12]}"
+    header = [
+        source + ".",
+        "Complexity categories are indicators derived from configured thresholds, not verdicts.",
+    ]
+
+    if thresholds:
+        bands = ", ".join(
+            f"{b['category']} " + (f"<= {b['max']}" if b.get("max") is not None else "above")
+            for b in thresholds.get("complexityBands", [])
+        )
+        if bands:
+            header.append(f"Complexity bands: {bands}.")
+        if thresholds.get("longFunctionNloc"):
+            header.append(f"A long function has more than {thresholds['longFunctionNloc']} NLOC.")
+        if thresholds.get("manyParameters"):
+            header.append(f"Many parameters means more than {thresholds['manyParameters']}.")
+
+    blocks = ["\n".join(header)]
+    for item in evidence:
+        location = ""
+        if item.scope == "function" and item.filePath:
+            span = f":{item.startLine}-{item.endLine}" if item.startLine else ""
+            location = f" in {item.filePath}{span}"
+        elif item.scope == "file":
+            location = f" ({item.filePath})"
+        lines = [f"[{item.id}] {item.scope.capitalize()}: {item.title}{location}"]
+        lines += [f"- {m.label}: {_format_value(m)}" for m in item.items]
+        blocks.append("\n".join(lines))
+
+    return "\n\n".join(blocks)

@@ -72,7 +72,33 @@ class GraphEvidence(BaseModel):
     edges: list[GraphEdge] = Field(default_factory=list)
 
 
-Evidence = Annotated[CodeEvidence | GraphEvidence, Field(discriminator="type")]
+class MetricItem(BaseModel):
+    key: str
+    label: str
+    value: float | int | None = None
+    unit: str | None = None
+    category: str | None = None
+
+
+class MetricEvidence(BaseModel):
+    """Measured values from a stored metrics analysis, never estimated by the LLM."""
+    type: Literal["metric"] = "metric"
+    id: str
+    scope: Literal["repository", "file", "function"]
+    title: str
+    fileId: str | None = None
+    fileName: str | None = None
+    filePath: str | None = None
+    symbol: str | None = None
+    startLine: int | None = None
+    endLine: int | None = None
+    analysisId: int | None = None
+    analyzedAt: str | None = None
+    commitSha: str | None = None
+    items: list[MetricItem] = Field(default_factory=list)
+
+
+Evidence = Annotated[CodeEvidence | GraphEvidence | MetricEvidence, Field(discriminator="type")]
 
 
 class ChatResponse(BaseModel):

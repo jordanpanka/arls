@@ -37,7 +37,9 @@ class FileService:
 
     ignore_filenames = [".env", "id_rsa", "id_ed25519", ".npmrc", ".pypirc"]
 
-    code_sources=[".cs", ".py" , ".js", ".ts", ".tsx", ".jsx", ".java", ".go", ".rs", ".php", ".cpp", ".c", ".h", ".hpp"]
+    # Code means "has a Tree-sitter grammar configured"; metrics analysis derives
+    # its language set from the same table, so the two cannot drift apart.
+    code_sources = list(CodeParser.code_parsers)
     structured_data=[".json",".yaml", ".yml" , ".xml", ".toml", ".ini", ".cfg", ".conf", ".properties", ".gradle", ".sql"]
     documentation=[".md", ".txt", ".rst", ".pdf"]
 

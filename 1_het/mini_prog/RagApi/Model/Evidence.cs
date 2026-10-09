@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(CodeEvidence), "code")]
 [JsonDerivedType(typeof(GraphEvidence), "graph")]
+[JsonDerivedType(typeof(MetricEvidence), "metric")]
 public abstract class Evidence
 {
     public string Id { get; set; } = "";
@@ -48,6 +49,32 @@ public class GraphEvidence : Evidence
     public List<GraphEdge> Edges { get; set; } = new();
 }
 
+public class MetricItem
+{
+    public string Key { get; set; } = "";
+    public string Label { get; set; } = "";
+    public double? Value { get; set; }
+    public string? Unit { get; set; }
+    public string? Category { get; set; }
+}
+
+// Values copied from a stored metrics analysis; the LLM only cites them.
+public class MetricEvidence : Evidence
+{
+    public string Scope { get; set; } = "file";
+    public string Title { get; set; } = "";
+    public string? FileId { get; set; }
+    public string? FileName { get; set; }
+    public string? FilePath { get; set; }
+    public string? Symbol { get; set; }
+    public int? StartLine { get; set; }
+    public int? EndLine { get; set; }
+    public int? AnalysisId { get; set; }
+    public string? AnalyzedAt { get; set; }
+    public string? CommitSha { get; set; }
+    public List<MetricItem> Items { get; set; } = new();
+}
+
 public record ChatAnswer(string Answer, List<Evidence> Evidence);
 
 public record ProjectFileContent(string FileId, string FileName, string FilePath, string Language, string Content);
@@ -88,6 +115,16 @@ public static class EvidenceJson
 
 public static class SourceLanguage
 {
+    // The files the AI service parses with Tree-sitter (CodeParser.code_parsers) and
+    // analyzes with Lizard. Kept in one place on this side; a mismatch with Python
+    // only makes the AI service report the file as skipped.
+    public static readonly IReadOnlySet<string> CodeExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ".py", ".cs", ".js", ".jsx", ".ts", ".tsx", ".java", ".go", ".rs", ".php", ".c", ".h", ".cpp", ".hpp",
+    };
+
+    public static bool IsCode(string path) => CodeExtensions.Contains(Path.GetExtension(path));
+
     private static readonly Dictionary<string, string> ByExtension = new(StringComparer.OrdinalIgnoreCase)
     {
         [".py"] = "python", [".cs"] = "csharp", [".js"] = "javascript", [".jsx"] = "javascript",

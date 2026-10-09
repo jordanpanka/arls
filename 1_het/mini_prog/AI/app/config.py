@@ -23,3 +23,8 @@ EMBED_DIM = int(os.getenv("EMBED_DIM", "768"))
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
+
+# Persisted code metrics live in MSSQL behind the .NET backend; the RAG workflow
+# reads them through its internal endpoint. The key must match Internal:ApiKey there.
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:5293")
+INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "local-dev-internal-key-change-me")
