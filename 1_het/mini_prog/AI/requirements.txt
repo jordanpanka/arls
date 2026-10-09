@@ -41,3 +41,4 @@ tree-sitter-languages==1.10.2
 llama-index
 neo4j
 langgraph
+lizard==1.24.0

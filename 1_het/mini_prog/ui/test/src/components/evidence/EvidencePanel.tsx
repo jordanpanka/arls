@@ -3,10 +3,12 @@ import CloseIcon from "@mui/icons-material/Close";
 import CodeIcon from "@mui/icons-material/Code";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
+import InsightsIcon from "@mui/icons-material/Insights";
 import { Box, CircularProgress, IconButton, Paper, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from "@mui/material";
 import { lazy, Suspense } from "preact/compat";
 import { CodeEvidenceView } from "./CodeEvidenceView";
-import { activeSource, focusNode, panelGraph, selectSource, type PanelState, type PanelView } from "./panelState";
+import { MetricEvidenceView } from "./MetricEvidenceView";
+import { activeSource, focusMetric, focusNode, panelGraph, panelMetrics, selectSource, type PanelState, type PanelView } from "./panelState";
 
 type EvidencePanelProps = {
     projectId: number,
@@ -41,6 +43,7 @@ const GraphEvidenceView = lazy(() => import("./GraphEvidenceView").then(m => ({ 
 
 export function EvidencePanel({ projectId, state, fullscreen, onChange, onToggleFullscreen, onClose }: EvidencePanelProps) {
     const graph = panelGraph(state);
+    const metrics = panelMetrics(state);
     const source = activeSource(state);
 
     return (
@@ -49,7 +52,7 @@ export function EvidencePanel({ projectId, state, fullscreen, onChange, onToggle
             elevation={0}
             role="complementary"
             aria-label="Evidence panel"
-            sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0, bgcolor: "white" }}
+            sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0, overflow: "clip", bgcolor: "white" }}
         >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, height: HEADER_H, flexShrink: 0, borderBottom: "1px solid #e5e7eb", bgcolor: "#f8fafc" }}>
                 <Typography sx={{ fontWeight: 600, fontSize: 15, lineHeight: 1, color: "#03045e", fontFamily: "'Inter', sans-serif" }}>
@@ -70,6 +73,9 @@ export function EvidencePanel({ projectId, state, fullscreen, onChange, onToggle
                     <ToggleButton value="graph" disabled={!graph} sx={toggleButton}>
                         <AccountTreeOutlinedIcon sx={{ fontSize: 16 }} />Graph
                     </ToggleButton>
+                    <ToggleButton value="metric" disabled={metrics.length === 0} sx={toggleButton}>
+                        <InsightsIcon sx={{ fontSize: 16 }} />Metrics
+                    </ToggleButton>
                 </ToggleButtonGroup>
                 <Box sx={{ flex: 1 }} />
                 <Tooltip title={fullscreen ? "Exit fullscreen" : "Fullscreen"}>
@@ -83,7 +89,7 @@ export function EvidencePanel({ projectId, state, fullscreen, onChange, onToggle
                     </IconButton>
                 </Tooltip>
             </Box>
-            <Box sx={{ flex: 1, minHeight: 0 }}>
+            <Box sx={{ flex: 1, minHeight: 0, overflow: "clip" }}>
                 {state.view === "code" ? (
                     <CodeEvidenceView
                         projectId={projectId}
@@ -93,6 +99,8 @@ export function EvidencePanel({ projectId, state, fullscreen, onChange, onToggle
                         onSelectSource={id => onChange(selectSource(state, id))}
                         onHighlightChange={index => onChange({ ...state, activeHighlight: index })}
                     />
+                ) : state.view === "metric" ? (
+                    <MetricEvidenceView metrics={metrics} activeId={state.activeMetricId} onOpenCode={metric => onChange(focusMetric(state, metric))} />
                 ) : (
                     <Suspense fallback={<Box sx={{ p: 3 }}><CircularProgress size={20} /></Box>}>
                         <GraphEvidenceView graph={graph} onOpenNode={node => onChange(focusNode(state, node))} />

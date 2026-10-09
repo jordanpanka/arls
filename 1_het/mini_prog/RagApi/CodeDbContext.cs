@@ -16,9 +16,37 @@ public class CodeDbContext : DbContext
     public DbSet<DbConversation> Conversations {get; set;}
 
     public DbSet<DbMessage> Messages {get; set;}
+
+    public DbSet<DbMetricsAnalysis> MetricsAnalyses { get; set; }
+    public DbSet<DbFileMetric> FileMetrics { get; set; }
+    public DbSet<DbFunctionMetric> FunctionMetrics { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<DbMetricsAnalysis>()
+            .HasOne(a=>a.Project)
+            .WithMany()
+            .HasForeignKey(a=>a.ProjectID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DbMetricsAnalysis>()
+            .HasIndex(a=>new { a.ProjectID, a.Status });
+
+        modelBuilder.Entity<DbFileMetric>()
+            .HasOne(f=>f.Analysis)
+            .WithMany(a=>a.Files)
+            .HasForeignKey(f=>f.AnalysisID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DbFileMetric>()
+            .HasIndex(f=>new { f.AnalysisID, f.Path });
+
+        modelBuilder.Entity<DbFunctionMetric>()
+            .HasOne(f=>f.FileMetric)
+            .WithMany(f=>f.Functions)
+            .HasForeignKey(f=>f.FileMetricID)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<DbInvestigation>()
             .HasOne(u=>u.User)

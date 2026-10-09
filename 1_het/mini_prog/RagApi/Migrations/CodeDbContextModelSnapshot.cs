@@ -91,6 +91,134 @@ namespace RagApi.Migrations
                     b.ToTable("File");
                 });
 
+            modelBuilder.Entity("ef.DbFileMetric", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ID"));
+
+                    b.Property<int>("AnalysisID")
+                        .HasColumnType("int");
+
+                    b.Property<double?>("AverageComplexity")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("AverageFunctionNloc")
+                        .HasColumnType("float");
+
+                    b.Property<int?>("ClassCount")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FanIn")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FanOut")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FileID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FunctionCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("HighComplexityFunctionCount")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ImportCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("LongFunctionCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ManyParameterFunctionCount")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MaxComplexity")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MaxFunctionNloc")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Nloc")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("TokenCount")
+                        .HasColumnType("int");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("AnalysisID", "Path");
+
+                    b.ToTable("FileMetric");
+                });
+
+            modelBuilder.Entity("ef.DbFunctionMetric", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ID"));
+
+                    b.Property<string>("ClassName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("CyclomaticComplexity")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EndLine")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FanIn")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FanOut")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FileMetricID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Length")
+                        .HasColumnType("int");
+
+                    b.Property<string>("LongName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Nloc")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ParameterCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StartLine")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TokenCount")
+                        .HasColumnType("int");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("FileMetricID");
+
+                    b.ToTable("FunctionMetric");
+                });
+
             modelBuilder.Entity("ef.DbInvestigation", b =>
                 {
                     b.Property<int>("ID")
@@ -147,6 +275,141 @@ namespace RagApi.Migrations
                     b.HasIndex("ConversationID");
 
                     b.ToTable("Message");
+                });
+
+            modelBuilder.Entity("ef.DbMetricsAnalysis", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ID"));
+
+                    b.Property<double?>("AverageComplexity")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("AverageFanIn")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("AverageFanOut")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Branch")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CommitSha")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CycleCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CyclesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("DependencyCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FileSetHash")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("FilesAnalyzed")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FilesSkipped")
+                        .HasColumnType("int");
+
+                    b.Property<string>("GraphAnalyzer")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double?>("GraphDurationMs")
+                        .HasColumnType("float");
+
+                    b.Property<string>("GraphStatus")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("HighComplexityFunctionCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LongFunctionCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ManyParameterFunctionCount")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MaxComplexity")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MaxDependencyDepth")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MaxFanIn")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MaxFanOut")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProjectID")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RepositoryID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SkippedFilesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("StaticAnalyzer")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double?>("StaticDurationMs")
+                        .HasColumnType("float");
+
+                    b.Property<string>("StaticStatus")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ThresholdsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("TotalClasses")
+                        .HasColumnType("int");
+
+                    b.Property<double?>("TotalDurationMs")
+                        .HasColumnType("float");
+
+                    b.Property<int>("TotalFunctions")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalNloc")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Trigger")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("ProjectID", "Status");
+
+                    b.ToTable("MetricsAnalysis");
                 });
 
             modelBuilder.Entity("ef.DbProject", b =>
@@ -289,6 +552,28 @@ namespace RagApi.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("ef.DbFileMetric", b =>
+                {
+                    b.HasOne("ef.DbMetricsAnalysis", "Analysis")
+                        .WithMany("Files")
+                        .HasForeignKey("AnalysisID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Analysis");
+                });
+
+            modelBuilder.Entity("ef.DbFunctionMetric", b =>
+                {
+                    b.HasOne("ef.DbFileMetric", "FileMetric")
+                        .WithMany("Functions")
+                        .HasForeignKey("FileMetricID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FileMetric");
+                });
+
             modelBuilder.Entity("ef.DbInvestigation", b =>
                 {
                     b.HasOne("ef.DbUser", "User")
@@ -309,6 +594,17 @@ namespace RagApi.Migrations
                         .IsRequired();
 
                     b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("ef.DbMetricsAnalysis", b =>
+                {
+                    b.HasOne("ef.DbProject", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("ef.DbProject", b =>
@@ -338,9 +634,19 @@ namespace RagApi.Migrations
                     b.Navigation("Messages");
                 });
 
+            modelBuilder.Entity("ef.DbFileMetric", b =>
+                {
+                    b.Navigation("Functions");
+                });
+
             modelBuilder.Entity("ef.DbInvestigation", b =>
                 {
                     b.Navigation("Projects");
+                });
+
+            modelBuilder.Entity("ef.DbMetricsAnalysis", b =>
+                {
+                    b.Navigation("Files");
                 });
 
             modelBuilder.Entity("ef.DbProject", b =>

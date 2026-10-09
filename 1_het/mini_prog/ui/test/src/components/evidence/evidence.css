@@ -29,3 +29,8 @@
   background: #88B8F9;
   color: white;
 }
+
+.evidence-cite-metric {
+  background: white;
+  box-shadow: inset 0 0 0 1px #88B8F9;
+}

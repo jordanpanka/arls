@@ -40,7 +40,32 @@ export type GraphEvidence = {
     edges: GraphEdge[]
 }
 
-export type Evidence = CodeEvidence | GraphEvidence;
+export type MetricItem = {
+    key: string,
+    label: string,
+    value: number | null,
+    unit?: string | null,
+    category?: string | null
+}
+
+export type MetricEvidence = {
+    type: "metric",
+    id: string,
+    scope: "repository" | "file" | "function",
+    title: string,
+    fileId?: string | null,
+    fileName?: string | null,
+    filePath?: string | null,
+    symbol?: string | null,
+    startLine?: number | null,
+    endLine?: number | null,
+    analysisId?: number | null,
+    analyzedAt?: string | null,
+    commitSha?: string | null,
+    items: MetricItem[]
+}
+
+export type Evidence = CodeEvidence | GraphEvidence | MetricEvidence;
 
 export type ProjectFile = {
     fileId: string,
@@ -58,6 +83,10 @@ export function isGraphEvidence(e: Evidence): e is GraphEvidence {
     return e.type === "graph";
 }
 
+export function isMetricEvidence(e: Evidence): e is MetricEvidence {
+    return e.type === "metric";
+}
+
 export function formatRange(h: Highlight) {
     return h.startLine === h.endLine ? `Line ${h.startLine}` : `Lines ${h.startLine}–${h.endLine}`;
 }
@@ -73,5 +102,6 @@ export function sanitizeEvidence(value: unknown): Evidence[] {
     return value.filter((e): e is Evidence =>
         !!e && typeof e === "object" && typeof e.id === "string" &&
         ((e.type === "code" && typeof e.filePath === "string" && Array.isArray(e.highlights)) ||
-            (e.type === "graph" && Array.isArray(e.nodes) && Array.isArray(e.edges))));
+            (e.type === "graph" && Array.isArray(e.nodes) && Array.isArray(e.edges)) ||
+            (e.type === "metric" && typeof e.title === "string" && Array.isArray(e.items))));
 }

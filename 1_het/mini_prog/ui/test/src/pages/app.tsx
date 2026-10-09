@@ -1,16 +1,34 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import '../styles/app.css';
 import { ProjectBar, type Project } from '../components/layout/ProjectBar';
-import { AppBar, Avatar, Box, IconButton, Toolbar, Typography } from '@mui/material';
+import { AppBar, Avatar, Box, Button, IconButton, Toolbar, Typography } from '@mui/material';
 import LogoutIcon from "@mui/icons-material/Logout";
 import { jwtDecode as decodeJwt } from "jwt-decode";
 import { useLocation } from "preact-iso";
 import { RightPanel } from '../components/layout/RightPanel';
 import { type Conversation } from '../components/chat/Chat';
 import { ChatArea } from '../components/chat/ChatArea';
+import { MetricsDashboard } from '../components/metrics/MetricsDashboard';
 
 // Same value the sidebars use, so everything starts right below the AppBar.
 const HEADER_H = 64;
+export type AppView = "chat" | "metrics";
+
+const navButton = (active: boolean) => ({
+  height: "auto",
+  color: "white",
+  textTransform: "none",
+  fontSize: 15,
+  fontWeight: active ? 600 : 400,
+  px: 1.5,
+  borderRadius: "8px",
+  bgcolor: active ? "rgba(255,255,255,0.14)" : "transparent",
+  border: "none",
+  "&:hover": { bgcolor: "rgba(255,255,255,0.2)", borderColor: "transparent" },
+  "&:focus": { outline: "none" },
+  "&.Mui-focusVisible": { outline: "2px solid #88B8F9" }
+});
+
 export type JwtPayload = {
   uid: string
   email: string
@@ -35,6 +53,7 @@ export function App() {
   const { route } = useLocation();
 
   const [isnewConversation, setIsNewConversation] = useState(false)
+  const [activeView, setActiveView] = useState<AppView>("chat");
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const sidebarsBeforeEvidence = useRef<{ left: boolean, right: boolean } | null>(null);
@@ -50,6 +69,10 @@ export function App() {
       setRightOpen(sidebarsBeforeEvidence.current.right);
       sidebarsBeforeEvidence.current = null;
     }
+  }
+  function switchView(view: AppView) {
+    if (view !== "chat") handleEvidencePanel(false);
+    setActiveView(view);
   }
   useEffect(() => {
     if (!localStorage.getItem("token")) {
@@ -138,9 +161,19 @@ export function App() {
       >
         <Toolbar sx={{ height: HEADER_H, minHeight: `${HEADER_H}px !important`, backgroundColor: "#03045e" }}>
           <Box sx={{ display: 'flex', alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-            <Typography sx={{ fontWeight: 600, fontSize: 30, color: "white" }}>
-              Code Mind
-            </Typography>
+            <Box component="nav" aria-label="Main" sx={{ display: 'flex', alignItems: "center", gap: 3 }}>
+              <Typography sx={{ fontWeight: 600, fontSize: 30, color: "white" }}>
+                Code Mind
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                <Button aria-current={activeView === "chat" ? "page" : undefined} onClick={() => switchView("chat")} sx={navButton(activeView === "chat")}>
+                  Chat
+                </Button>
+                <Button aria-current={activeView === "metrics" ? "page" : undefined} onClick={() => switchView("metrics")} sx={navButton(activeView === "metrics")}>
+                  Code Metrics
+                </Button>
+              </Box>
+            </Box>
             <Box sx={{ display: 'flex', alignItems: "center", gap: 2 }}>
               <Avatar
                 sx={{
@@ -170,7 +203,7 @@ export function App() {
           display: "flex",
           height: `calc(100vh - ${HEADER_H}px)`,
           mt: `${HEADER_H}px`,
-          overflow: "hidden",
+          overflow: "clip",
           minHeight: 0
         }}
       >
@@ -200,11 +233,20 @@ export function App() {
             display: "flex",
             justifyContent: "center",
             width: "100%",
-            overflow: 'hidden'
+            overflow: 'clip'
 
           }}
         >
-          {/*selectedProjectId!=-1 && */(
+          {activeView === "metrics" ? (
+            selectedProjectId != -1 ? (
+              <MetricsDashboard projectId={selectedProjectId} projectName={selectedProject?.name} />
+            ) : (
+              <Box sx={{ m: "auto", textAlign: "center", color: "#5b6b7f" }}>
+                <Typography sx={{ fontSize: 16, fontWeight: 600, color: "#03045e" }}>Select a project</Typography>
+                <Typography sx={{ fontSize: 14 }}>Choose a project in the sidebar to see its code metrics.</Typography>
+              </Box>
+            )
+          ) : (
             <ChatArea
               newChat={isnewConversation}
               setNewChat={setIsNewConversation}
@@ -217,7 +259,7 @@ export function App() {
           )}
         </Box>
 
-        {selectedProject && selectedProjectId != -1 && (
+        {activeView === "chat" && selectedProject && selectedProjectId != -1 && (
           <RightPanel
             selectedInvId={selectedInvestigationId}
             projectSelected={selectedProject}

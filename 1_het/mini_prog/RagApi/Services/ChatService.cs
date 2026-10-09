@@ -283,9 +283,11 @@ public class ChatService
     {
         var codeItems = evidence.OfType<CodeEvidence>().ToList();
         var graphNodes = evidence.OfType<GraphEvidence>().SelectMany(g => g.Nodes).Where(n => n.FilePath != null).ToList();
+        var metricItems = evidence.OfType<MetricEvidence>().Where(m => m.FilePath != null).ToList();
 
         var paths = codeItems.Select(c => EvidenceJson.NormalizePath(c.FilePath))
             .Concat(graphNodes.Select(n => EvidenceJson.NormalizePath(n.FilePath)))
+            .Concat(metricItems.Select(m => EvidenceJson.NormalizePath(m.FilePath)))
             .Where(p => p != "")
             .Distinct()
             .ToList();
@@ -309,6 +311,12 @@ public class ChatService
         {
             node.FilePath = EvidenceJson.NormalizePath(node.FilePath);
             node.FileId = ids.GetValueOrDefault(node.FilePath);
+        }
+
+        foreach (var metric in metricItems)
+        {
+            metric.FilePath = EvidenceJson.NormalizePath(metric.FilePath);
+            metric.FileId = ids.GetValueOrDefault(metric.FilePath);
         }
     }
 }

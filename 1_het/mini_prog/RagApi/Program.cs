@@ -123,6 +123,15 @@ builder.Services.AddHostedService<RepositoryIngestWorker>();
 builder.Services.AddScoped<ChatService>();
 builder.Services.AddScoped<MinioService>();
 
+builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection("Metrics"));
+builder.Services.AddScoped<MetricsService>();
+builder.Services.AddHttpClient<MetricsAnalysisService>(c =>
+{
+    c.Timeout = TimeSpan.FromMinutes(30);
+});
+builder.Services.AddSingleton<MetricsAnalysisQueue>();
+builder.Services.AddHostedService<MetricsAnalysisWorker>();
+
 
 //controllers
 builder.Services.AddControllers();

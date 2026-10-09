@@ -116,11 +116,8 @@ public class GitHubService
         ".mypy_cache", ".idea", ".vs", "coverage", "htmlcov", "packages"
     };
 
-    private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> AllowedExtensions = new(SourceLanguage.CodeExtensions, StringComparer.OrdinalIgnoreCase)
     {
-        // code
-        ".cs", ".py", ".js", ".ts", ".tsx", ".jsx", ".java", ".go", ".rs",
-        ".php", ".cpp", ".c", ".h", ".hpp",
         // structured / configuration
         ".json", ".yaml", ".yml", ".xml", ".toml", ".ini", ".cfg", ".conf",
         ".properties", ".gradle", ".sql",

@@ -1,25 +1,32 @@
-import { isCodeEvidence, isGraphEvidence, nodeLocation, type CodeEvidence, type Evidence, type GraphEvidence, type GraphNode } from "./types";
+import { isCodeEvidence, isGraphEvidence, isMetricEvidence, nodeLocation, type CodeEvidence, type Evidence, type GraphEvidence, type GraphNode, type Highlight, type MetricEvidence } from "./types";
 
-export type PanelView = "code" | "graph";
+export type PanelView = "code" | "graph" | "metric";
 
 export type PanelState = {
     evidence: Evidence[],
     sources: CodeEvidence[],
     activeSourceId: string | null,
     activeHighlight: number,
+    activeMetricId?: string | null,
     view: PanelView
 }
 
 export function openPanel(evidence: Evidence[], targetId: string): PanelState {
     const sources = evidence.filter(isCodeEvidence);
     const target = evidence.find(e => e.id === targetId);
+    const metrics = evidence.filter(isMetricEvidence);
     return {
         evidence,
         sources,
         activeSourceId: target && isCodeEvidence(target) ? target.id : sources[0]?.id ?? null,
         activeHighlight: 0,
-        view: target && isGraphEvidence(target) ? "graph" : "code"
+        activeMetricId: target && isMetricEvidence(target) ? target.id : metrics[0]?.id ?? null,
+        view: target && isGraphEvidence(target) ? "graph" : target && isMetricEvidence(target) ? "metric" : "code"
     };
+}
+
+export function panelMetrics(state: PanelState): MetricEvidence[] {
+    return state.evidence.filter(isMetricEvidence);
 }
 
 export function panelGraph(state: PanelState): GraphEvidence | undefined {
@@ -34,11 +41,12 @@ export function selectSource(state: PanelState, sourceId: string): PanelState {
     return { ...state, activeSourceId: sourceId, activeHighlight: 0, view: "code" };
 }
 
-/** Opens a graph node's source range, reusing the file's tab when it is already evidence. */
-export function focusNode(state: PanelState, node: GraphNode): PanelState {
-    if (!node.fileId) return state;
-    const range = nodeLocation(node);
-    const existing = state.sources.find(s => s.fileId === node.fileId);
+type Location = { key: string, fileId?: string | null, filePath?: string | null, label: string, range: Highlight | null };
+
+function openLocation(state: PanelState, location: Location): PanelState {
+    if (!location.fileId) return state;
+    const range = location.range;
+    const existing = state.sources.find(s => s.fileId === location.fileId);
 
     if (existing) {
         let index = range
@@ -58,16 +66,16 @@ export function focusNode(state: PanelState, node: GraphNode): PanelState {
         };
     }
 
-    const path = node.filePath ?? "";
+    const path = location.filePath ?? "";
     const source: CodeEvidence = {
         type: "code",
-        id: `NODE_${node.id}`,
-        fileId: node.fileId,
-        fileName: path.split("/").pop() || node.label,
+        id: location.key,
+        fileId: location.fileId,
+        fileName: path.split("/").pop() || location.label,
         filePath: path,
         language: "plaintext",
         highlights: range ? [range] : [],
-        symbols: [node.label]
+        symbols: [location.label]
     };
     return {
         ...state,
@@ -76,6 +84,21 @@ export function focusNode(state: PanelState, node: GraphNode): PanelState {
         activeHighlight: 0,
         view: "code"
     };
+}
+
+/** Opens a graph node's source range, reusing the file's tab when it is already evidence. */
+export function focusNode(state: PanelState, node: GraphNode): PanelState {
+    return openLocation(state, { key: `NODE_${node.id}`, fileId: node.fileId, filePath: node.filePath, label: node.label, range: nodeLocation(node) });
+}
+
+export function focusMetric(state: PanelState, metric: MetricEvidence): PanelState {
+    const range = metric.startLine ? { startLine: metric.startLine, endLine: metric.endLine ?? metric.startLine } : null;
+    return openLocation(state, { key: `METRIC_SRC_${metric.id}`, fileId: metric.fileId, filePath: metric.filePath, label: metric.symbol ?? metric.title, range });
+}
+
+export function summarizeMetric(metric: MetricEvidence): string {
+    const lead = metric.items.filter(i => i.value !== null).slice(0, 2);
+    return lead.map(i => `${i.label}: ${i.value}`).join(" · ");
 }
 
 export function summarizeGraph(graph: GraphEvidence): string {

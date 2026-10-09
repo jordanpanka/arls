@@ -169,7 +169,7 @@ export function ChatWindow(prop: cProps) {
                         flexDirection: "column",
                         minHeight: 0,
                         width: "100%",
-                        overflow: "hidden"
+                        overflow: "clip"
                     }}>
                     {messagesByConvId[prop.selectedCOnversationId] != null &&
                         <Box sx={{

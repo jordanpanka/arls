@@ -1,10 +1,11 @@
 import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
 import CodeIcon from "@mui/icons-material/Code";
+import InsightsIcon from "@mui/icons-material/Insights";
 import { Box, ButtonBase, Typography } from "@mui/material";
 import type { JSX } from "preact";
 import "./evidence.css";
-import { summarizeGraph } from "./panelState";
-import { formatRange, isCodeEvidence, isGraphEvidence, type Evidence } from "./types";
+import { summarizeGraph, summarizeMetric } from "./panelState";
+import { formatRange, isCodeEvidence, isGraphEvidence, isMetricEvidence, type Evidence } from "./types";
 
 type EvidenceListProps = {
     evidence: Evidence[],
@@ -32,7 +33,8 @@ function SectionLabel({ children }: { children: string }) {
 export function EvidenceList({ evidence, onOpen }: EvidenceListProps) {
     const code = evidence.filter(isCodeEvidence);
     const graphs = evidence.filter(isGraphEvidence);
-    if (code.length === 0 && graphs.length === 0) return null;
+    const metrics = evidence.filter(isMetricEvidence);
+    if (code.length === 0 && graphs.length === 0 && metrics.length === 0) return null;
 
     return (
         <Box sx={{ borderTop: "1px solid #e5e7eb", mx: "10px", mb: "8px", pt: 0.5 }} aria-label="Evidence">
@@ -62,6 +64,18 @@ export function EvidenceList({ evidence, onOpen }: EvidenceListProps) {
                     </Typography>
                 </ButtonBase>
             ))}
+            {metrics.length > 0 && <SectionLabel>Metrics</SectionLabel>}
+            {metrics.map(metric => (
+                <ButtonBase key={metric.id} sx={rowSx} onClick={() => onOpen(metric.id)} title={metric.filePath ?? metric.title}>
+                    <InsightsIcon sx={{ fontSize: 16, color: "#0077B6" }} />
+                    <Typography sx={{ fontSize: 13, fontWeight: 500, whiteSpace: "nowrap" }}>
+                        {metric.title}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: "text.secondary", ml: "auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {summarizeMetric(metric)}
+                    </Typography>
+                </ButtonBase>
+            ))}
         </Box>
     );
 }
@@ -74,17 +88,20 @@ type AnswerTextProps = {
 
 /** Turns [SOURCE_n] citations into links; ids the answer invented stay plain text. */
 export function AnswerText({ content, evidence, onOpen }: AnswerTextProps) {
-    const sources = new Map(evidence.filter(isCodeEvidence).map(e => [e.id, e]));
+    const titles = new Map<string, string>([
+        ...evidence.filter(isCodeEvidence).map(e => [e.id, e.fileName] as [string, string]),
+        ...evidence.filter(isMetricEvidence).map(e => [e.id, `Metrics: ${e.title}`] as [string, string])
+    ]);
     const parts: (string | JSX.Element)[] = [];
     let last = 0;
 
-    for (const match of content.matchAll(/\[(SOURCE_(\d+))\]/g)) {
-        const source = sources.get(match[1]);
-        if (!source) continue;
+    for (const match of content.matchAll(/\[((SOURCE|METRIC)_(\d+))\]/g)) {
+        const title = titles.get(match[1]);
+        if (!title) continue;
         parts.push(content.slice(last, match.index));
         parts.push(
-            <button key={match.index} type="button" className="evidence-cite" title={`${source.fileName}`} onClick={() => onOpen(source.id)}>
-                {match[2]}
+            <button key={match.index} type="button" className={match[2] === "METRIC" ? "evidence-cite evidence-cite-metric" : "evidence-cite"} title={title} onClick={() => onOpen(match[1])}>
+                {match[2] === "METRIC" ? `M${match[3]}` : match[3]}
             </button>
         );
         last = match.index! + match[0].length;

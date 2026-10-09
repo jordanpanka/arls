@@ -16,6 +16,7 @@ public class RepositoryIngestService
     private readonly FileService fileService;
     private readonly MinioService minioService;
     private readonly RepositoryIngestQueue queue;
+    private readonly MetricsAnalysisService metricsAnalysis;
     private readonly ILogger<RepositoryIngestService> logger;
 
    
@@ -27,6 +28,7 @@ public class RepositoryIngestService
         FileService files,
         MinioService minio,
         RepositoryIngestQueue ingestQueue,
+        MetricsAnalysisService metricsAnalysisService,
         ILogger<RepositoryIngestService> log)
     {
         db = codeDbContext;
@@ -34,6 +36,7 @@ public class RepositoryIngestService
         fileService = files;
         minioService = minio;
         queue = ingestQueue;
+        metricsAnalysis = metricsAnalysisService;
         logger = log;
     }
 
@@ -213,6 +216,8 @@ public class RepositoryIngestService
             record.Status = RepositoryStatus.Ready;
             record.IndexedAt = DateTime.UtcNow;
             await db.SaveChangesAsync(cancellationToken);
+
+            await QueueMetricsAsync(record.ProjectID);
         }
         catch (OperationCanceledException)
         {
@@ -226,6 +231,20 @@ public class RepositoryIngestService
         finally
         {
             snapshot?.Dispose();
+        }
+    }
+
+    private async Task QueueMetricsAsync(int projectId)
+    {
+        try
+        {
+            var queued = await metricsAnalysis.QueueAfterImportAsync(projectId);
+            if (queued != null)
+                logger.LogInformation("Queued metrics analysis {AnalysisId} for project {ProjectId}", queued.AnalysisId, projectId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not queue metrics analysis for project {ProjectId}", projectId);
         }
     }
 

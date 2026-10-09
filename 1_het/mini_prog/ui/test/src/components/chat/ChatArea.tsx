@@ -56,7 +56,7 @@ export function ChatArea(props: ChatAreaProps) {
     }
 
     return (
-        <Box ref={container} data-testid="chat-area" sx={{ display: "flex", flex: 1, minWidth: 0, minHeight: 0, height: "100%", width: "100%" }}>
+        <Box ref={container} data-testid="chat-area" sx={{ display: "flex", flex: 1, minWidth: 0, minHeight: 0, height: "100%", width: "100%", overflow: "clip" }}>
             <Box sx={{ display: panel && fullscreen ? "none" : "flex", flex: 1, minWidth: 0, minHeight: 0, justifyContent: "center" }}>
                 <ChatWindow
                     newChat={props.newChat}
@@ -83,7 +83,7 @@ export function ChatArea(props: ChatAreaProps) {
                             }}
                         />
                     )}
-                    <Box sx={{ width: fullscreen ? "100%" : `${width}%`, flexShrink: 0, minWidth: 0, minHeight: 0 }}>
+                    <Box sx={{ width: fullscreen ? "100%" : `${width}%`, flexShrink: 0, minWidth: 0, minHeight: 0, overflow: "clip" }}>
                         <EvidencePanel
                             projectId={props.sellectedProjId}
                             state={panel}
