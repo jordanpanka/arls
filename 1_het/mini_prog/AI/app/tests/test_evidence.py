@@ -213,7 +213,7 @@ async def test_chat_response_serializes_evidence(monkeypatch):
     monkeypatch.setattr(chat_service.rag_graph, "ainvoke", fake_invoke)
 
     response = await chat_service.send_message_async_langgraph(
-        ChatRequest(prompt="?", userId=1, investigationId=2, projectId=3)
+        ChatRequest(prompt="?", userId=1, investigationId=2, projectId=3, mode="adaptive_rag")
     )
 
     data = response.data

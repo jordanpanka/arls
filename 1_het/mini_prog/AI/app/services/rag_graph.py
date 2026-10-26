@@ -87,6 +87,8 @@ class RagState(TypedDict, total=False):
 
     ragas_run_id: str
 
+    strategy_overrides: dict
+
 def extract_json(raw: str) -> dict:
     """A modell valaszabol kiszedi a JSON objektumot.
 
@@ -111,8 +113,7 @@ def extract_json(raw: str) -> dict:
     return json.loads(text[start:end + 1])
 
 
-async def classify_question(state: RagState) -> RagState:
-    question = state["question"]
+def build_classifier_prompt(question: str) -> str:
 
     # A nyelvfelismeres es a forditas szandekosan ugyanebben a hivasban tortenik.
     # Kulon node-kent minden kerdes egy plusz LLM-kort jelentene, ami CPU-n futo
@@ -168,6 +169,52 @@ async def classify_question(state: RagState) -> RagState:
     Question:
     {question}
     """
+    return classifier_prompt
+
+
+def parse_classification(raw_answer: str, question: str) -> dict:
+    parsed = extract_json(raw_answer)
+
+    question_type = parsed.get("question_type", "general")
+    search_vectors = parsed.get("search_vectors", ["summary", "code", "text"])
+
+    allowed_types = {"code", "summary", "text", "general"}
+    allowed_vectors = {"code", "summary", "text"}
+
+    if question_type not in allowed_types:
+        question_type = "general"
+
+    search_vectors = [
+        vector for vector in search_vectors
+        if vector in allowed_vectors
+    ]
+
+    if not search_vectors:
+        search_vectors = ["summary", "code", "text"]
+
+    return {
+        "question_type": question_type,
+        "search_vectors": search_vectors,
+        "language": str(parsed.get("language") or "en").strip().lower()[:5],
+        "language_name": str(parsed.get("language_name") or "English").strip(),
+        "question_en": str(parsed.get("question_en") or "").strip() or question,
+    }
+
+
+FALLBACK_CLASSIFICATION = {
+    "question_type": "general",
+    "search_vectors": ["summary", "code", "text"],
+    "language": "en",
+    "language_name": "English",
+}
+
+
+async def classify_question(state: RagState) -> RagState:
+    if state.get("question_en") and state.get("question_type") and state.get("search_vectors"):
+        return state
+
+    question = state["question"]
+    classifier_prompt = build_classifier_prompt(question)
 
     try:
         # call_llm-en keresztul, nem sajat httpx-hivassal: a helyi Ollama nem ker
@@ -177,41 +224,15 @@ async def classify_question(state: RagState) -> RagState:
         # fallback againra esve. A call_llm mar kezeli ezt az esetet.
         raw_answer = (await call_llm(classifier_prompt)).strip()
 
-        parsed = extract_json(raw_answer)
-
-        question_type = parsed.get("question_type", "general")
-        search_vectors = parsed.get("search_vectors", ["summary", "code", "text"])
-
-        allowed_types = {"code", "summary", "text", "general"}
-        allowed_vectors = {"code", "summary", "text"}
-
-        if question_type not in allowed_types:
-            question_type = "general"
-
-        search_vectors = [
-            vector for vector in search_vectors
-            if vector in allowed_vectors
-        ]
-
-        if not search_vectors:
-            search_vectors = ["summary", "code", "text"]
-
-        language = str(parsed.get("language") or "en").strip().lower()[:5]
-        language_name = str(parsed.get("language_name") or "English").strip()
-
         # Ures forditas eseten az eredeti kerdessel megyunk tovabb: egy rossz
         # kereses is tobbet er, mint egy ures.
-        question_en = str(parsed.get("question_en") or "").strip() or question
+        classification = parse_classification(raw_answer, question)
 
-        print(f"Nyelv: {language} ({language_name}) | Angol kerdes: {question_en}")
+        print(f"Nyelv: {classification['language']} ({classification['language_name']}) | Angol kerdes: {classification['question_en']}")
 
         return {
             **state,
-            "question_type": question_type,
-            "search_vectors": search_vectors,
-            "language": language,
-            "language_name": language_name,
-            "question_en": question_en
+            **classification
         }
 
     except Exception as e:
@@ -221,10 +242,7 @@ async def classify_question(state: RagState) -> RagState:
         print("classify_question hiba:", e)
         return {
             **state,
-            "question_type": "general",
-            "search_vectors": ["summary", "code", "text"],
-            "language": "en",
-            "language_name": "English",
+            **FALLBACK_CLASSIFICATION,
             "question_en": question
         }
 
@@ -364,28 +382,20 @@ def plan_metrics(state: RagState) -> dict:
 async def search_plan(state: RagState) -> RagState:
     question_type = state.get("question_type", "general")
     metrics_plan = plan_metrics(state)
+    overrides = state.get("strategy_overrides") or {}
 
     if question_type == "text":
-        return {
-            **state,
-            **metrics_plan,
-            "use_graph": False,
-            "needs_rerank": False
-        }
-
-    if question_type in ["code", "summary", "general"]:
-        return {
-            **state,
-            **metrics_plan,
-            "use_graph": True,
-            "needs_rerank": True
-        }
+        plan = {"use_graph": False, "needs_rerank": False}
+    elif question_type in ["code", "summary", "general"]:
+        plan = {"use_graph": True, "needs_rerank": True}
+    else:
+        plan = {"use_graph": True, "needs_rerank": False}
 
     return {
         **state,
         **metrics_plan,
-        "use_graph": True,
-        "needs_rerank": False
+        **plan,
+        **overrides
     }
 def route_after_filter(state: RagState) -> str:
     if not state.get("top_results"):
@@ -502,7 +512,8 @@ async def search_vector(
     vector_name: str,
     vector: List[float],
     http_client: httpx.AsyncClient,
-    state:RagState
+    state:RagState,
+    limit: int = 5
 ) -> List[dict]:
     '''search_payload = {
         "vector": {
@@ -517,7 +528,7 @@ async def search_vector(
         "name": vector_name,
         "vector": vector
     },
-    "limit": 5,
+    "limit": limit,
     "with_payload": True,
     "filter": {
         "must": [
@@ -819,22 +830,7 @@ async def translate_answer(state: RagState) -> RagState:
 
     start_time = time.perf_counter()
 
-    translate_prompt = f"""
-    Translate the text below into {language_name}.
-
-    Rules:
-    - Return ONLY the translation, nothing else.
-    - Do not write an introduction, a note or an explanation.
-    - Do NOT translate code fragments, identifiers, function names, class names,
-      file paths or file extensions - copy them exactly as they are.
-    - Keep the structure of the text: line breaks, lists and code blocks stay.
-    - Keep source references such as [SOURCE_1] and [METRIC_1] exactly as they are.
-    - Keep every number exactly as it is.
-    - Use natural, fluent {language_name}, not a word by word translation.
-
-    Text:
-    {answer_en}
-    """
+    translate_prompt = build_translation_prompt(answer_en, language_name)
 
     try:
         translated = (await call_llm(translate_prompt)).strip()
@@ -856,6 +852,25 @@ async def translate_answer(state: RagState) -> RagState:
         #test
         "total_time_ms": state.get("total_time_ms", 0) + translation_time_ms
     }
+
+
+def build_translation_prompt(answer_en: str, language_name: str, references: str = "[SOURCE_1] and [METRIC_1]") -> str:
+    return f"""
+    Translate the text below into {language_name}.
+
+    Rules:
+    - Return ONLY the translation, nothing else.
+    - Do not write an introduction, a note or an explanation.
+    - Do NOT translate code fragments, identifiers, function names, class names,
+      file paths or file extensions - copy them exactly as they are.
+    - Keep the structure of the text: line breaks, lists and code blocks stay.
+    - Keep source references such as {references} exactly as they are.
+    - Keep every number exactly as it is.
+    - Use natural, fluent {language_name}, not a word by word translation.
+
+    Text:
+    {answer_en}
+    """
 
 
 
