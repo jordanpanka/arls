@@ -90,18 +90,19 @@ type AnswerTextProps = {
 export function AnswerText({ content, evidence, onOpen }: AnswerTextProps) {
     const titles = new Map<string, string>([
         ...evidence.filter(isCodeEvidence).map(e => [e.id, e.fileName] as [string, string]),
-        ...evidence.filter(isMetricEvidence).map(e => [e.id, `Metrics: ${e.title}`] as [string, string])
+        ...evidence.filter(isMetricEvidence).map(e => [e.id, `Metrics: ${e.title}`] as [string, string]),
+        ...evidence.filter(isGraphEvidence).map(e => [e.id, `Graph: ${summarizeGraph(e)}`] as [string, string])
     ]);
     const parts: (string | JSX.Element)[] = [];
     let last = 0;
 
-    for (const match of content.matchAll(/\[((SOURCE|METRIC)_(\d+))\]/g)) {
+    for (const match of content.matchAll(/\[((SOURCE|METRIC|GRAPH)_(\d+))\]/g)) {
         const title = titles.get(match[1]);
         if (!title) continue;
         parts.push(content.slice(last, match.index));
         parts.push(
-            <button key={match.index} type="button" className={match[2] === "METRIC" ? "evidence-cite evidence-cite-metric" : "evidence-cite"} title={title} onClick={() => onOpen(match[1])}>
-                {match[2] === "METRIC" ? `M${match[3]}` : match[3]}
+            <button key={match.index} type="button" className={match[2] === "METRIC" ? "evidence-cite evidence-cite-metric" : match[2] === "GRAPH" ? "evidence-cite evidence-cite-graph" : "evidence-cite"} title={title} onClick={() => onOpen(match[1])}>
+                {match[2] === "METRIC" ? `M${match[3]}` : match[2] === "GRAPH" ? `G${match[3]}` : match[3]}
             </button>
         );
         last = match.index! + match[0].length;

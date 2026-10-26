@@ -122,6 +122,7 @@ builder.Services.AddSingleton<RepositoryIngestQueue>();
 builder.Services.AddHostedService<RepositoryIngestWorker>();
 builder.Services.AddScoped<ChatService>();
 builder.Services.AddScoped<MinioService>();
+builder.Services.AddScoped<SourceAccessService>();
 
 builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection("Metrics"));
 builder.Services.AddScoped<MetricsService>();

@@ -1,0 +1,423 @@
+{
+  "description": "Benchmark questions for comparing retrieval strategies on the indexed Code Mind repository. expected_files/expected_symbols are used for evidence recall, precision, Recall@k and MRR; empty lists disable retrieval scoring for that question.",
+  "questions": [
+    {
+      "id": "hu-01",
+      "question": "Mit tartalmaz az ollama_call.py fájl?",
+      "ground_truth": "Az ollama_call.py a call_llm függvényt tartalmazza, amely HTTP kéréssel kommunikál a konfigurált nyelvi modellel.",
+      "category": "comprehension",
+      "expected_files": [
+        "ollama_call.py"
+      ],
+      "expected_symbols": []
+    },
+    {
+      "id": "hu-02",
+      "question": "Milyen függvényeket tartalmaz az ollama_call.py fájl?",
+      "ground_truth": "Az ollama_call.py egy call_llm nevű aszinkron függvényt tartalmaz.",
+      "category": "comprehension",
+      "expected_files": [
+        "ollama_call.py"
+      ],
+      "expected_symbols": []
+    },
+    {
+      "id": "hu-03",
+      "question": "Mi a FileService osztály felelőssége?",
+      "ground_truth": "A FileService a fájlok feldolgozásáért, embedding generálásáért, chunkolásáért és adattárolásáért felel.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "FileService"
+      ]
+    },
+    {
+      "id": "hu-04",
+      "question": "Mire használható a Neo4j a projektben?",
+      "ground_truth": "A Neo4j a fájlok, osztályok, függvények és kapcsolataik gráfos tárolására szolgál.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": []
+    },
+    {
+      "id": "hu-05",
+      "question": "Milyen függvényeket tartalmaz a FileService osztály?",
+      "ground_truth": "A FileService PDF feldolgozó, chunkoló, embedding generáló, fájltípus felismerő és feltöltő függvényeket tartalmaz.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "FileService"
+      ]
+    },
+    {
+      "id": "hu-06",
+      "question": "Mire jó a process_code_file függvény?",
+      "ground_truth": "A process_code_file AST-t épít, kinyeri a kódelemeket és összefoglalókat generál hozzájuk.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "process_code_file"
+      ]
+    },
+    {
+      "id": "hu-07",
+      "question": "Mire jó a process_doc_file függvény?",
+      "ground_truth": "A process_doc_file dokumentumokat chunkokra bont és TextNode objektumokat hoz létre.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "process_doc_file"
+      ]
+    },
+    {
+      "id": "hu-08",
+      "question": "Hogyan történik az embedding generálás a rendszerben?",
+      "ground_truth": "Az embeddingeket a FileService embed függvénye generálja az embedding modell segítségével.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": []
+    },
+    {
+      "id": "hu-09",
+      "question": "Milyen fájltípusokat kezel a rendszer?",
+      "ground_truth": "A rendszer kódfájlokat, dokumentációs fájlokat és strukturált adatfájlokat különböztet meg.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": []
+    },
+    {
+      "id": "hu-10",
+      "question": "Mire szolgál a CodeParser osztály?",
+      "ground_truth": "A CodeParser a forráskód AST alapú elemzését végzi.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "CodeParser"
+      ]
+    },
+    {
+      "id": "hu-11",
+      "question": "Milyen programozási nyelveket támogat a CodeParser?",
+      "ground_truth": "A rendszer többek között Python, C#, JavaScript, TypeScript, TSX, JSX és Java fájlokat támogat.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "CodeParser"
+      ]
+    },
+    {
+      "id": "hu-12",
+      "question": "Mit csinál a parse_code_to_tree függvény?",
+      "ground_truth": "A parse_code_to_tree Tree-sitter segítségével AST-t épít a forráskódból.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "parse_code_to_tree"
+      ]
+    },
+    {
+      "id": "hu-13",
+      "question": "Mit csinál az extract_class_function_nodes függvény?",
+      "ground_truth": "Kinyeri az AST-ből az osztály és függvény definíciókat.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "extract_class_function_nodes"
+      ]
+    },
+    {
+      "id": "hu-14",
+      "question": "Mit csinál az extract_graph_relations függvény?",
+      "ground_truth": "Kinyeri az importokat, függvényhívásokat és osztály-metódus kapcsolatokat.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "extract_graph_relations"
+      ]
+    },
+    {
+      "id": "hu-15",
+      "question": "Mire szolgál a NodeCreator osztály?",
+      "ground_truth": "A NodeCreator LlamaIndex TextNode objektumokat hoz létre a kódrészletekből.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "NodeCreator"
+      ]
+    },
+    {
+      "id": "hu-16",
+      "question": "Hogyan kezeli a NodeCreator a hosszú kódrészleteket?",
+      "ground_truth": "A hosszú kódrészleteket szemantikus chunkokra bontja.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "NodeCreator"
+      ]
+    },
+    {
+      "id": "hu-17",
+      "question": "Mit csinál a generate_summary_to_node függvény?",
+      "ground_truth": "A függvény LLM segítségével rövid összefoglalót készít egy kódrészletről.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "generate_summary_to_node"
+      ]
+    },
+    {
+      "id": "hu-18",
+      "question": "Mi a rag_graph szerepe a rendszerben?",
+      "ground_truth": "A rag_graph a kérdésfeldolgozási és válaszgenerálási folyamatot vezérli.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "rag_graph"
+      ]
+    },
+    {
+      "id": "hu-19",
+      "question": "Milyen lépésekből áll a rag_graph feldolgozási folyamata?",
+      "ground_truth": "A folyamat kérdésosztályozásból, átírásból, embedding generálásból, keresésből, kontextusépítésből és válaszgenerálásból áll.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "rag_graph"
+      ]
+    },
+    {
+      "id": "hu-20",
+      "question": "Mit csinál a classify_question node?",
+      "ground_truth": "A kérdést különböző keresési kategóriákba sorolja.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "classify_question"
+      ]
+    },
+    {
+      "id": "hu-21",
+      "question": "Mi a rephrase_question feladata?",
+      "ground_truth": "A kérdést optimalizált keresési lekérdezéssé alakítja.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "rephrase_question"
+      ]
+    },
+    {
+      "id": "hu-22",
+      "question": "Mit csinál a search_qdrant node?",
+      "ground_truth": "A Qdrant adatbázisban keres a kérdés embeddingje alapján.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "search_qdrant"
+      ]
+    },
+    {
+      "id": "hu-23",
+      "question": "Mit csinál a build_context node?",
+      "ground_truth": "A keresési találatokból összeállítja a válaszadáshoz szükséges kontextust.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "build_context"
+      ]
+    },
+    {
+      "id": "hu-24",
+      "question": "Mit csinál a generate_answer node?",
+      "ground_truth": "A kontextus alapján végleges választ generál.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "generate_answer"
+      ]
+    },
+    {
+      "id": "hu-25",
+      "question": "Milyen kapcsolat van a FileService és a Neo4jService között?",
+      "ground_truth": "A FileService a Neo4jService metódusait használja a gráf adatainak eltárolására.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "FileService",
+        "Neo4jService"
+      ]
+    },
+    {
+      "id": "hu-26",
+      "question": "Milyen kapcsolat van a FileService és a CodeParser között?",
+      "ground_truth": "A FileService a CodeParser segítségével elemzi a forráskódot.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "FileService",
+        "CodeParser"
+      ]
+    },
+    {
+      "id": "hu-27",
+      "question": "Milyen kapcsolat van a FileService és a NodeCreator között?",
+      "ground_truth": "A FileService a NodeCreator segítségével hoz létre node-okat és összefoglalókat.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": [
+        "FileService",
+        "NodeCreator"
+      ]
+    },
+    {
+      "id": "hu-28",
+      "question": "Mely komponensek vesznek részt egy kódfájl feldolgozásában?",
+      "ground_truth": "A folyamatban a FileService, CodeParser, NodeCreator és Neo4jService vesz részt.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": []
+    },
+    {
+      "id": "hu-29",
+      "question": "Hogyan kerülnek az osztályok a Neo4j adatbázisba?",
+      "ground_truth": "A CodeParser kinyeri az osztályokat, majd a FileService a Neo4jService segítségével eltárolja őket.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": []
+    },
+    {
+      "id": "hu-30",
+      "question": "Hogyan épülnek fel a függvényhívási kapcsolatok a Neo4j-ben?",
+      "ground_truth": "A rendszer a kódból kinyert függvényhívások alapján CALLS kapcsolatokat hoz létre a gráfban.",
+      "category": "comprehension",
+      "expected_files": [],
+      "expected_symbols": []
+    },
+    {
+      "id": "en-agent-01",
+      "question": "What does the call_llm function do?",
+      "category": "comprehension",
+      "expected_files": [
+        "app/services/ollama_call.py"
+      ],
+      "expected_symbols": [
+        "call_llm"
+      ],
+      "ground_truth": "call_llm sends the prompt to the configured Ollama generate endpoint and returns the generated text."
+    },
+    {
+      "id": "en-agent-02",
+      "question": "Which functions call call_llm?",
+      "category": "dependency",
+      "expected_files": [
+        "app/services/rag_graph.py",
+        "app/services/node_creator.py"
+      ],
+      "expected_symbols": [
+        "call_llm"
+      ],
+      "ground_truth": "The LangGraph nodes in rag_graph.py (classification, rephrasing, generation, translation) and the summary generation in node_creator.py call call_llm."
+    },
+    {
+      "id": "en-agent-03",
+      "question": "Which functions are the most difficult to maintain?",
+      "category": "maintainability",
+      "expected_files": [],
+      "expected_symbols": [],
+      "ground_truth": ""
+    },
+    {
+      "id": "en-agent-04",
+      "question": "Which highly complex functions are also critical dependencies for other modules?",
+      "category": "multi_source",
+      "expected_files": [],
+      "expected_symbols": [],
+      "ground_truth": ""
+    },
+    {
+      "id": "en-agent-05",
+      "question": "What would be affected if search_vector were modified?",
+      "category": "impact",
+      "expected_files": [
+        "app/services/rag_graph.py"
+      ],
+      "expected_symbols": [
+        "search_vector",
+        "search_qdrant"
+      ],
+      "ground_truth": "search_qdrant calls search_vector, so the Qdrant retrieval step of the RAG workflow would be affected."
+    },
+    {
+      "id": "en-change-01",
+      "question": "How can I add a new agent tool that lists the TODO comments of a file?",
+      "category": "change_planning",
+      "expected_files": [
+        "app/tools/code_tools.py",
+        "app/tools/registry.py",
+        "app/tests/test_agent_tools.py"
+      ],
+      "expected_symbols": [
+        "keyword_code_search",
+        "build_registry"
+      ],
+      "ground_truth": "Model the handler and its Pydantic argument schema on keyword_code_search in code_tools.py, add a ToolSpec to a tool list, include that list in ALL_TOOLS in registry.py, and add tests next to test_agent_tools.py."
+    },
+    {
+      "id": "en-change-02",
+      "question": "Where should I add a new internal RagApi endpoint that returns line counts per file?",
+      "category": "change_planning",
+      "expected_files": [
+        "RagApi/Controllers/InternalSourceController.cs",
+        "RagApi/Services/SourceAccessService.cs",
+        "RagApi/Program.cs",
+        "RagApi/Tests/SourceAccessTests.cs"
+      ],
+      "expected_symbols": [
+        "InternalSourceController",
+        "SourceAccessService"
+      ],
+      "ground_truth": "Add an action to InternalSourceController backed by a method in SourceAccessService (registered in Program.cs), and extend SourceAccessTests."
+    },
+    {
+      "id": "hu-change-01",
+      "question": "Hogyan adjak hozzá egy új retrieval módot, amely csak a kódgráfot használja?",
+      "category": "change_planning",
+      "expected_files": [
+        "app/agents/config.py",
+        "app/services/chat_service.py",
+        "app/tests/test_modes.py"
+      ],
+      "expected_symbols": [
+        "config_for"
+      ],
+      "ground_truth": "Az új módot az agents/config.py config_for függvényében kell definiálni a megfelelő tool-kapcsolókkal, a chat_service-ben kell továbbítani, és a test_modes.py-ban tesztelni."
+    },
+    {
+      "id": "en-pattern-01",
+      "question": "Is there a design pattern that could simplify how the agent chooses its tools in build_registry?",
+      "category": "design_pattern",
+      "expected_files": [
+        "app/tools/registry.py",
+        "app/tools/base.py"
+      ],
+      "expected_symbols": [
+        "build_registry",
+        "ToolSpec"
+      ],
+      "ground_truth": "Tools are already registered declaratively as ToolSpec objects filtered by category flags in build_registry; no new pattern is needed, a new tool is added as one more ToolSpec."
+    },
+    {
+      "id": "en-pattern-02",
+      "question": "How should I add a new retrieval mode: as another branch or with a design pattern?",
+      "category": "design_pattern",
+      "expected_files": [
+        "app/services/chat_service.py",
+        "app/agents/config.py"
+      ],
+      "expected_symbols": [
+        "run_chat",
+        "config_for"
+      ],
+      "ground_truth": "Modes are selected through MODE_PRESETS/LEGACY_MODES dictionaries and resolve_mode; adding an entry is the minimal change and no extra abstraction is required."
+    }
+  ]
+}

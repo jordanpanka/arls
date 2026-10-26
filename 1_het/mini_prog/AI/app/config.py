@@ -16,6 +16,7 @@ GEN_MODEL = os.getenv("GEN_MODEL", "llama3:latest")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "embeddinggemma:latest")
 GEN_MODEL_CLOUD = os.getenv("GEN_MODEL_CLOUD")
 EMBED_MODEL_CLOUD = os.getenv("EMBED_MODEL_CLOUD") or os.getenv("OLLAMA_EMBED_MODEL")
+EMBED_BASE_URL = os.getenv("EMBED_BASE_URL", f"{OLLAMA_URL}/api")
 
 # Dimension of EMBED_MODEL output. embeddinggemma -> 768.
 EMBED_DIM = int(os.getenv("EMBED_DIM", "768"))
@@ -28,3 +29,11 @@ NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
 # reads them through its internal endpoint. The key must match Internal:ApiKey there.
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:5293")
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "local-dev-internal-key-change-me")
+
+CHAT_DEFAULT_MODE = os.getenv("CHAT_DEFAULT_MODE", "routed_rag")
+ROUTER_ESCALATION = os.getenv("ROUTER_ESCALATION", "true").lower() in ("1", "true", "yes")
+AGENT_TRACE_ENABLED = os.getenv("AGENT_TRACE_ENABLED", "true").lower() in ("1", "true", "yes")
+AGENT_TRACE_DIR = os.getenv(
+    "AGENT_TRACE_DIR",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "eval", "traces"),
+)

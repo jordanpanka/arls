@@ -53,6 +53,74 @@ class Neo4jService:
                 "end_line": end_line
             })
     
+    SAVE_TYPES = """
+    UNWIND $types AS t
+    MERGE (f:File {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id, path: $file_path})
+    MERGE (c:Class {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id, name: t.name, filePath: $file_path})
+    SET c.startLine = coalesce(c.startLine, t.start_line),
+        c.endLine = coalesce(c.endLine, t.end_line),
+        c.typeKind = t.kind,
+        c.bases = t.bases,
+        c.events = t.events
+    MERGE (f)-[:CONTAINS]->(c)
+    WITH c, t
+    UNWIND t.bases AS base
+    MERGE (r:TypeRef {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id, name: base})
+    MERGE (c)-[:INHERITS]->(r)
+    """
+
+    SAVE_FIELDS = """
+    UNWIND $fields AS fld
+    MATCH (c:Class {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id, name: fld.owner, filePath: $file_path})
+    MERGE (r:TypeRef {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id, name: fld.type})
+    MERGE (c)-[e:HAS_FIELD {name: fld.name}]->(r)
+    SET e.line = fld.line, e.injected = fld.injected, e.collection = fld.collection
+    """
+
+    SAVE_TYPED_FUNCTIONS = """
+    UNWIND $functions AS fn
+    MERGE (f:File {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id, path: $file_path})
+    MERGE (n:Function {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id, name: fn.name, filePath: $file_path, startLine: fn.start_line})
+    SET n.endLine = coalesce(n.endLine, fn.end_line),
+        n.raises = fn.raises
+    MERGE (f)-[:CONTAINS]->(n)
+    """
+
+    SAVE_FUNCTION_TYPES = """
+    UNWIND $edges AS e
+    MATCH (n:Function {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id, name: e.function, filePath: $file_path, startLine: e.start_line})
+    MERGE (r:TypeRef {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id, name: e.type})
+    FOREACH (_ IN CASE WHEN e.rel = 'INSTANTIATES' THEN [1] ELSE [] END |
+        MERGE (n)-[x:INSTANTIATES]->(r) SET x.line = e.line)
+    FOREACH (_ IN CASE WHEN e.rel = 'TAKES' THEN [1] ELSE [] END |
+        MERGE (n)-[x:TAKES {name: e.name}]->(r) SET x.line = e.line)
+    FOREACH (_ IN CASE WHEN e.rel = 'RETURNS' THEN [1] ELSE [] END |
+        MERGE (n)-[x:RETURNS]->(r) SET x.line = e.line)
+    """
+
+    def save_type_relations(self, user_id: int, investigation_id: int, project_id: int, file_path: str, relations: dict):
+        types = relations.get("types") or []
+        functions = relations.get("functions") or []
+        fields = [{**fld, "owner": t["name"]} for t in types for fld in t["fields"]]
+        edges = []
+        for fn in functions:
+            key = {"function": fn["name"], "start_line": fn["start_line"]}
+            edges += [{**key, "rel": "INSTANTIATES", "type": c["type"], "name": None, "line": c["line"]} for c in fn["creations"]]
+            edges += [{**key, "rel": "TAKES", "type": p["type"], "name": p["name"], "line": fn["start_line"]} for p in fn["params"]]
+            if fn["returns"]:
+                edges.append({**key, "rel": "RETURNS", "type": fn["returns"], "name": None, "line": fn["start_line"]})
+
+        scope = {"user_id": user_id, "investigation_id": investigation_id, "project_id": project_id, "file_path": file_path}
+        with self.driver.session() as session:
+            if types:
+                session.run(self.SAVE_TYPES, {**scope, "types": types})
+            if fields:
+                session.run(self.SAVE_FIELDS, {**scope, "fields": fields})
+            if functions:
+                session.run(self.SAVE_TYPED_FUNCTIONS, {**scope, "functions": functions})
+            if edges:
+                session.run(self.SAVE_FUNCTION_TYPES, {**scope, "edges": edges})
+
     def save_function(self,user_id:int, investigation_id:int, project_id: int, file_path: str, function_name: str, start_line: int, end_line: int):
         query = """
         MERGE (f:File {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id, path: $file_path})
@@ -61,10 +129,10 @@ class Neo4jService:
             investigation_id: $investigation_id,
             projectId: $project_id,
             name: $function_name,
-            filePath: $file_path
+            filePath: $file_path,
+            startLine: $start_line
         })
-        SET fn.startLine = $start_line,
-            fn.endLine = $end_line
+        SET fn.endLine = $end_line
         MERGE (f)-[:CONTAINS]->(fn)
         """
 
@@ -94,7 +162,9 @@ class Neo4jService:
             filePath: $file_path
         })
         SET m.startLine = $start_line,
-            m.endLine = $end_line
+            m.endLine = $end_line,
+            m.user_id = $user_id,
+            m.investigation_id = $investigation_id
         MERGE (c)-[:CONTAINS]->(m)
         """
         with self.driver.session() as session:
@@ -114,15 +184,17 @@ class Neo4jService:
         project_id: int,
         caller_name: str,
         caller_file_path: str,
-        called_name: str
+        called_name: str,
+        caller_start_line: int | None = None
     ):
+        caller_key = ", startLine: $caller_start_line" if caller_start_line is not None else ""
         query = """
         MERGE (caller:Function {
             user_id: $user_id,
             investigation_id: $investigation_id,
             projectId: $project_id,
             name: $caller_name,
-            filePath: $caller_file_path
+            filePath: $caller_file_path""" + caller_key + """
         })
         MERGE (called:Function {
             user_id: $user_id,
@@ -140,7 +212,8 @@ class Neo4jService:
                 "project_id": project_id,
                 "caller_name": caller_name,
                 "caller_file_path": caller_file_path,
-                "called_name": called_name
+                "called_name": called_name,
+                "caller_start_line": caller_start_line
             })
             
     def save_import_relation(
@@ -352,3 +425,62 @@ class Neo4jService:
                     "startLine": definition.get("startLine"),
                     "endLine": definition.get("endLine")
                 }
+
+    CODE_GRAPH_FUNCTIONS = """
+    MATCH (fn:Function {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id})
+    WHERE fn.filePath IS NOT NULL
+    RETURN elementId(fn) AS id, fn.name AS name, fn.filePath AS path, fn.startLine AS startLine, fn.endLine AS endLine,
+           fn.raises AS raises
+    LIMIT $limit
+    """
+
+    CODE_GRAPH_CALLS = """
+    MATCH (caller:Function {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id})
+          -[:CALLS]->(callee:Function {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id})
+    WHERE caller.filePath IS NOT NULL
+    RETURN elementId(caller) AS callerId, elementId(callee) AS calleeId,
+           callee.name AS calleeName, callee.filePath AS calleePath
+    LIMIT $limit
+    """
+
+    CODE_GRAPH_CLASSES = """
+    MATCH (c:Class {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id})
+    RETURN elementId(c) AS id, c.name AS name, c.filePath AS path, c.startLine AS startLine, c.endLine AS endLine,
+           c.bases AS bases, c.typeKind AS typeKind, c.events AS events
+    LIMIT $limit
+    """
+
+    CODE_GRAPH_TYPE_RELATIONS = """
+    MATCH (s {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id})
+          -[r:INHERITS|HAS_FIELD|INSTANTIATES|TAKES|RETURNS]->
+          (t:TypeRef {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id})
+    WHERE (s:Class OR s:Function) AND s.filePath IS NOT NULL
+    RETURN elementId(s) AS sourceId, type(r) AS type, t.name AS target, r.name AS name, r.line AS line,
+           coalesce(r.injected, false) AS injected, coalesce(r.collection, false) AS collection
+    LIMIT $limit
+    """
+
+    CODE_GRAPH_FILES = """
+    MATCH (f:File {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id})
+    OPTIONAL MATCH (f)-[:IMPORTS]->(m:Module {user_id: $user_id, investigation_id: $investigation_id, projectId: $project_id})
+    RETURN f.path AS path, collect(DISTINCT m.name) AS imports
+    LIMIT $limit
+    """
+
+    def load_code_graph(self, user_id: int, investigation_id: int, project_id: int, limit: int = 20000) -> dict:
+        params = {
+            "user_id": user_id,
+            "investigation_id": investigation_id,
+            "project_id": project_id,
+            "limit": limit,
+        }
+        with self.driver.session() as session:
+            functions = [r.data() for r in session.run(self.CODE_GRAPH_FUNCTIONS, params)]
+            calls = [r.data() for r in session.run(self.CODE_GRAPH_CALLS, params)]
+            classes = [r.data() for r in session.run(self.CODE_GRAPH_CLASSES, params)]
+            files = [r.data() for r in session.run(self.CODE_GRAPH_FILES, params)]
+            type_relations = [r.data() for r in session.run(self.CODE_GRAPH_TYPE_RELATIONS, params)]
+
+        truncated = any(len(rows) >= limit for rows in (functions, calls, classes, files, type_relations))
+        return {"functions": functions, "calls": calls, "classes": classes, "files": files,
+                "type_relations": type_relations, "truncated": truncated}

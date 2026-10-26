@@ -247,7 +247,7 @@ public class ChatService
         httpClient.Timeout = TimeSpan.FromMinutes(5);
         var pythonUrl = $"{configuration["AI:PythonUrl"]}/api/chat/files/send";
 
-        var response = await httpClient.PostAsJsonAsync(pythonUrl,new ChatRequestPython(prompt.prompt,userId, prompt.investigationId,prompt.projectId));
+        var response = await httpClient.PostAsJsonAsync(pythonUrl,new ChatRequestPython(prompt.prompt,userId, prompt.investigationId,prompt.projectId, prompt.mode));
 
         var responseBody = await response.Content.ReadAsStringAsync();
 
@@ -270,13 +270,29 @@ public class ChatService
 
         await AttachFileIdsAsync(prompt.projectId, evidence);
 
-        return ServiceResult.Success(new ChatAnswer(answer, evidence));
+        var status = data.TryGetProperty("status", out var statusElement) && statusElement.ValueKind == JsonValueKind.String
+            ? statusElement.GetString()
+            : null;
+
+        return ServiceResult.Success(new ChatAnswer(
+            answer,
+            evidence,
+            status,
+            Passthrough(data, "citations"),
+            Passthrough(data, "execution"),
+            Passthrough(data, "rawEvidence"),
+            Passthrough(data, "patternAnalysis")));
     }
     catch (Exception ex)
     {
         return ServiceResult.Fail($"Chat failed: {ex.Message}");
     }
 }
+
+    private static JsonElement? Passthrough(JsonElement data, string name) =>
+        data.TryGetProperty(name, out var element) && element.ValueKind is JsonValueKind.Object or JsonValueKind.Array
+            ? element.Clone()
+            : null;
 
     // The AI service only knows repository paths; file IDs live in MSSQL.
     public async Task AttachFileIdsAsync(int projectId, List<Evidence> evidence)

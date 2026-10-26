@@ -11,8 +11,8 @@ public record InvestigationID(int id);
 public record ProjectID(int id);
 
 public record RenameData(int id, string name);
-public record ChatRequest(string prompt, int investigationId, int projectId);
-public record ChatRequestPython(string prompt,int userId, int investigationId, int projectId);
+public record ChatRequest(string prompt, int investigationId, int projectId, string? mode = null);
+public record ChatRequestPython(string prompt,int userId, int investigationId, int projectId, string? mode = null);
 public enum FileLookupStatus { Found, ProjectNotFound, Forbidden, FileNotFound }
 public record ProjectFileLookup(FileLookupStatus Status, ef.DbFile? File = null, int OwnerId = 0, int InvestigationId = 0);
 public record RegisterData(string email, string password, string firstName, string lastName);

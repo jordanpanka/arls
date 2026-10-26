@@ -8,6 +8,8 @@ using System.Text.Json.Serialization;
 public abstract class Evidence
 {
     public string Id { get; set; } = "";
+    public List<string>? EvidenceIds { get; set; }
+    public List<string>? ProducedBy { get; set; }
 }
 
 public record Highlight(int StartLine, int EndLine);
@@ -22,6 +24,7 @@ public class CodeEvidence : Evidence
     public List<string> Symbols { get; set; } = new();
     public string? RetrievalType { get; set; }
     public double? Score { get; set; }
+    public string? Certainty { get; set; }
 }
 
 public class GraphNode
@@ -41,6 +44,7 @@ public class GraphEdge
     public string Source { get; set; } = "";
     public string Target { get; set; } = "";
     public string Type { get; set; } = "";
+    public string? Certainty { get; set; }
 }
 
 public class GraphEvidence : Evidence
@@ -75,7 +79,14 @@ public class MetricEvidence : Evidence
     public List<MetricItem> Items { get; set; } = new();
 }
 
-public record ChatAnswer(string Answer, List<Evidence> Evidence);
+public record ChatAnswer(
+    string Answer,
+    List<Evidence> Evidence,
+    string? Status = null,
+    JsonElement? Citations = null,
+    JsonElement? Execution = null,
+    JsonElement? RawEvidence = null,
+    JsonElement? PatternAnalysis = null);
 
 public record ProjectFileContent(string FileId, string FileName, string FilePath, string Language, string Content);
 

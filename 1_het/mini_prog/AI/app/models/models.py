@@ -27,6 +27,9 @@ class ChatRequest(BaseModel):
     userId:int
     investigationId:int
     projectId:int
+    mode: str | None = None
+    ablation: str | None = None
+    experimentId: str | None = None
 
 
 class Highlight(BaseModel):
@@ -46,6 +49,9 @@ class CodeEvidence(BaseModel):
     symbols: list[str] = Field(default_factory=list)
     retrievalType: str | None = None
     score: float | None = None
+    evidenceIds: list[str] | None = None
+    producedBy: list[str] | None = None
+    certainty: str | None = None
 
 
 class GraphNode(BaseModel):
@@ -63,6 +69,7 @@ class GraphEdge(BaseModel):
     source: str
     target: str
     type: str
+    certainty: str | None = None
 
 
 class GraphEvidence(BaseModel):
@@ -70,6 +77,8 @@ class GraphEvidence(BaseModel):
     id: str
     nodes: list[GraphNode] = Field(default_factory=list)
     edges: list[GraphEdge] = Field(default_factory=list)
+    evidenceIds: list[str] | None = None
+    producedBy: list[str] | None = None
 
 
 class MetricItem(BaseModel):
@@ -96,11 +105,24 @@ class MetricEvidence(BaseModel):
     analyzedAt: str | None = None
     commitSha: str | None = None
     items: list[MetricItem] = Field(default_factory=list)
+    evidenceIds: list[str] | None = None
+    producedBy: list[str] | None = None
 
 
 Evidence = Annotated[CodeEvidence | GraphEvidence | MetricEvidence, Field(discriminator="type")]
 
 
+class Citation(BaseModel):
+    alias: str
+    type: str
+    evidenceIds: list[str] = Field(default_factory=list)
+
+
 class ChatResponse(BaseModel):
     answer: str
     evidence: list[Evidence] = Field(default_factory=list)
+    status: str | None = None
+    citations: list[Citation] | None = None
+    rawEvidence: list[dict] | None = None
+    execution: dict | None = None
+    patternAnalysis: dict | None = None
