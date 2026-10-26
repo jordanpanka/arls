@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -10,7 +8,7 @@ using Microsoft.Extensions.Configuration;
 [Route("/api/internal/projects/{projectId:int}/metrics")]
 public class InternalMetricsController : ControllerBase
 {
-    public const string KeyHeader = "X-Internal-Key";
+    public const string KeyHeader = InternalKey.Header;
 
     private readonly MetricsService metricsService;
     private readonly IConfiguration configuration;
@@ -25,7 +23,7 @@ public class InternalMetricsController : ControllerBase
     [HttpPost("evidence")]
     public async Task<IActionResult> Evidence(int projectId, [FromBody] RagMetricsRequest request)
     {
-        if (!HasValidKey()) return Unauthorized();
+        if (!InternalKey.IsValid(Request, configuration)) return Unauthorized();
 
         var lookup = await metricsService.GetRagEvidenceAsync(projectId, request);
         return lookup.Status switch
@@ -34,14 +32,5 @@ public class InternalMetricsController : ControllerBase
             MetricsLookupStatus.Forbidden => StatusCode(StatusCodes.Status403Forbidden),
             _ => NotFound(new { available = false, error = lookup.Status.ToString() }),
         };
-    }
-
-    private bool HasValidKey()
-    {
-        var expected = configuration["Internal:ApiKey"];
-        var provided = Request.Headers[KeyHeader].ToString();
-        if (string.IsNullOrEmpty(expected) || string.IsNullOrEmpty(provided)) return false;
-
-        return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(provided));
     }
 }

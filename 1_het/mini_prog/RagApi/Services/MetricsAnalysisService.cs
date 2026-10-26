@@ -279,16 +279,18 @@ public class MetricsAnalysisService
     private async Task<List<DbFile>> CodeFilesAsync(int projectId)
     {
         var files = await db.Files.Where(f => f.ProjectID == projectId).ToListAsync();
+        return CodeFilesOf(files);
+    }
 
-        return files
+    internal static List<DbFile> CodeFilesOf(IEnumerable<DbFile> files) =>
+        files
             .Where(f => SourceLanguage.IsCode(f.RelativePath))
             .GroupBy(f => EvidenceJson.NormalizePath(f.RelativePath))
             .Select(g => g.OrderBy(f => f.ID).First())
             .OrderBy(f => f.RelativePath, StringComparer.Ordinal)
             .ToList();
-    }
 
-    private static string FileSetHash(IEnumerable<DbFile> files)
+    internal static string FileSetHash(IEnumerable<DbFile> files)
     {
         var text = string.Join("\n", files.Select(f => $"{EvidenceJson.NormalizePath(f.RelativePath)}:{f.Size}"));
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
