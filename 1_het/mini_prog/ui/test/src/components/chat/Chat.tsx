@@ -3,7 +3,9 @@ import { Box, IconButton, Paper, TextField, Typography } from "@mui/material";
 import { useEffect, useState } from "preact/hooks";
 import { NewConversation } from "./NewConversation";
 import { AnswerText, EvidenceList } from "../evidence/EvidenceList";
-import { sanitizeEvidence, type Evidence } from "../evidence/types";
+import { sanitizeEvidence, sanitizeExecution, sanitizePatternAnalysis, type Evidence, type ExecutionInfo, type PatternAnalysisInfo } from "../evidence/types";
+import { ExecutionSummary } from "./ExecutionSummary";
+import { PatternAnalysisPanel } from "./PatternAnalysisPanel";
 type Message = {
     id: number,
     role: string,
@@ -31,6 +33,8 @@ export function ChatWindow(prop: cProps) {
     const [messagesByConvId, setMessagesByConvId] = useState<Record<number, Message[]>>({});
     const [prompt, setPrompt] = useState("");
     const [answer, setAnswer] = useState("kezdő");
+    const [executions, setExecutions] = useState<Record<string, ExecutionInfo>>({});
+    const [patternAnalyses, setPatternAnalyses] = useState<Record<string, PatternAnalysisInfo>>({});
 
     async function addConversation(title: string) {
         const projectId = prop.sellectedProjId;
@@ -76,6 +80,10 @@ export function ChatWindow(prop: cProps) {
         const data = await r.json();
         setAnswer(data.answer);
         setPrompt("");
+        const execution = sanitizeExecution(data.execution, data.status);
+        if (execution) setExecutions(prev => ({ ...prev, [`${prop.selectedCOnversationId}:${data.answer}`]: execution }));
+        const patternAnalysis = sanitizePatternAnalysis(data.patternAnalysis);
+        if (patternAnalysis) setPatternAnalyses(prev => ({ ...prev, [`${prop.selectedCOnversationId}:${data.answer}`]: patternAnalysis }));
         await addMessage(data.answer, "AI", sanitizeEvidence(data.evidence));
 
 
@@ -182,6 +190,8 @@ export function ChatWindow(prop: cProps) {
                             {messagesByConvId[prop.selectedCOnversationId].map(m => {
                                 const evidence = m.role === "User" ? [] : sanitizeEvidence(m.evidence);
                                 const openEvidence = (id: string) => prop.onOpenEvidence?.(evidence, id);
+                                const execution = m.role === "User" ? undefined : executions[`${prop.selectedCOnversationId}:${m.content}`];
+                                const patternAnalysis = m.role === "User" ? undefined : patternAnalyses[`${prop.selectedCOnversationId}:${m.content}`];
                                 return <Box
                                     key={m.id}
                                     sx={{
@@ -207,6 +217,8 @@ export function ChatWindow(prop: cProps) {
                                         ) : (
                                             <Typography sx={{ margin: "10px" }}>{m.content}</Typography>
                                         )}
+                                        {patternAnalysis && <PatternAnalysisPanel analysis={patternAnalysis} onOpen={openEvidence} />}
+                                        {execution && <ExecutionSummary execution={execution} />}
                                     </Paper>
                                 </Box>
                             })}

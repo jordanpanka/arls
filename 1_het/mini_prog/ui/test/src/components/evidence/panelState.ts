@@ -8,6 +8,7 @@ export type PanelState = {
     activeSourceId: string | null,
     activeHighlight: number,
     activeMetricId?: string | null,
+    activeGraphId?: string | null,
     view: PanelView
 }
 
@@ -15,12 +16,14 @@ export function openPanel(evidence: Evidence[], targetId: string): PanelState {
     const sources = evidence.filter(isCodeEvidence);
     const target = evidence.find(e => e.id === targetId);
     const metrics = evidence.filter(isMetricEvidence);
+    const graphs = evidence.filter(isGraphEvidence);
     return {
         evidence,
         sources,
         activeSourceId: target && isCodeEvidence(target) ? target.id : sources[0]?.id ?? null,
         activeHighlight: 0,
         activeMetricId: target && isMetricEvidence(target) ? target.id : metrics[0]?.id ?? null,
+        activeGraphId: target && isGraphEvidence(target) ? target.id : graphs[0]?.id ?? null,
         view: target && isGraphEvidence(target) ? "graph" : target && isMetricEvidence(target) ? "metric" : "code"
     };
 }
@@ -30,7 +33,8 @@ export function panelMetrics(state: PanelState): MetricEvidence[] {
 }
 
 export function panelGraph(state: PanelState): GraphEvidence | undefined {
-    return state.evidence.find(isGraphEvidence);
+    const graphs = state.evidence.filter(isGraphEvidence);
+    return graphs.find(g => g.id === state.activeGraphId) ?? graphs[0];
 }
 
 export function activeSource(state: PanelState): CodeEvidence | undefined {
