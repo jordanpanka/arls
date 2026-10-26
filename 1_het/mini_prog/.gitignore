@@ -80,3 +80,7 @@ publish/
 
 # OS files
 ehthumbs.db
+
+# Agent traces and benchmark outputs
+AI/eval/traces/
+AI/eval/results/

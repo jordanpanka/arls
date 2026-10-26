@@ -40,5 +40,8 @@ tree-sitter==0.20.1
 tree-sitter-languages==1.10.2
 llama-index
 neo4j
-langgraph
+langgraph==1.2.2
 lizard==1.24.0
+langchain-core==1.4.0
+pytest
+pytest-asyncio
