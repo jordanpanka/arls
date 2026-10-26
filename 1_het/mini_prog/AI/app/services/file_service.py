@@ -8,7 +8,7 @@ import httpx
 
 from fastapi import UploadFile
 
-from app.config import EMBED_MODEL_CLOUD, OLLAMA_API_KEY, OLLAMA_BASE_URL, QDRANT_URL, QDRANT_COLLECTION, EMBED_MODEL, OLLAMA_URL
+from app.config import EMBED_BASE_URL, EMBED_MODEL_CLOUD, OLLAMA_API_KEY, OLLAMA_BASE_URL, QDRANT_URL, QDRANT_COLLECTION, EMBED_MODEL, OLLAMA_URL
 from app.models.models import Ids, ServiceResult
 from app.services.parse_service import CodeParser
 from app.services.node_creator import NodeCreator
@@ -19,6 +19,7 @@ from fastapi import UploadFile, Form, File
 
 from app.services.neo4j_service import Neo4jService
 from app.services.evidence_service import language_for_path
+from app.patterns.structure import parse_source, type_relations
 
 class FileService:
 
@@ -106,21 +107,29 @@ class FileService:
         if not text or not text.strip():
             return []
 
+        use_cloud = EMBED_BASE_URL.rstrip("/") == OLLAMA_BASE_URL.rstrip("/") and bool(OLLAMA_API_KEY)
+
+        headers = {}
+        if use_cloud:
+            headers["Authorization"] = f"Bearer {OLLAMA_API_KEY}"
+
         payload = {
-            "model": EMBED_MODEL,
-            "prompt": text
+            "model": (EMBED_MODEL_CLOUD or EMBED_MODEL) if use_cloud else EMBED_MODEL,
+            "input": text
         }
 
         response = await http.post(
-            f"{OLLAMA_URL}/api/embeddings",
+            f"{EMBED_BASE_URL.rstrip('/')}/embed",
+            headers=headers,
             json=payload
         )
 
         response.raise_for_status()
 
         data = response.json()
+        embeddings = data.get("embeddings") or [[]]
 
-        return [float(x) for x in data.get("embedding") or []]
+        return [float(x) for x in embeddings[0] or []]
     
     async def upload_qdrant_async(self,user_id: int ,
         inv_id: int,
@@ -241,7 +250,8 @@ class FileService:
                                     project_id=project_id,
                                     caller_name=call["caller"],
                                     caller_file_path=paths[i],
-                                    called_name=call["called"]
+                                    called_name=call["called"],
+                                    caller_start_line=call.get("caller_start_line")
                                 )
                             
                             for method in relations["methods"]:
@@ -255,7 +265,15 @@ class FileService:
                                     start_line=method["start_line"],
                                     end_line=method["end_line"]
                                 )
-                                
+
+                            neo4j_service.save_type_relations(
+                                user_id=user_id,
+                                investigation_id=inv_id,
+                                project_id=project_id,
+                                file_path=paths[i],
+                                relations=relations["type_relations"]
+                            )
+
                         # Config files (json/yaml/Dockerfile/...) and prose both
                         # embed as plain text; neither has a tree-sitter grammar
                         # configured, so there is nothing to parse into nodes.
@@ -354,7 +372,12 @@ class FileService:
             classnodes, functionnodes=c_parser.extract_class_function_nodes(tree.root_node)
             print("CLASS NODES:", len(classnodes))
             print("FUNCTION NODES:", len(functionnodes))   
-            relations = c_parser.extract_graph_relations(tree, source_code)   
+            relations = c_parser.extract_graph_relations(tree, source_code)
+            try:
+                relations["type_relations"] = type_relations(parse_source(path, source_code))
+            except Exception as e:
+                print(f"Type relation extraction skipped for {path}: {type(e).__name__}")
+                relations["type_relations"] = type_relations(None)
             nodecreator=NodeCreator()
             llamaindexnodes=[]
             for node in classnodes:

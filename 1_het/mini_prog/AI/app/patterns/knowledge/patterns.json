@@ -1,0 +1,435 @@
+{
+  "version": "1.0",
+  "patterns": [
+    {
+      "id": "strategy",
+      "name": "Strategy",
+      "category": "behavioral",
+      "intent": "Define a family of interchangeable algorithms behind one interface so the client can switch between them without conditional logic.",
+      "use_cases": [
+        "Several pricing, shipping, payment or export variants selected at runtime",
+        "A growing set of behavioural variants that keep being added"
+      ],
+      "applicability": [
+        "The same operation exists in three or more variants",
+        "New variants are expected to be added regularly",
+        "The variants share inputs and outputs"
+      ],
+      "structural_indicators": [
+        "An interface or abstract class with several implementations",
+        "A context class that holds the interface and delegates to it",
+        "Implementations injected or selected outside the context"
+      ],
+      "code_smells": [
+        "Long if/else or switch chains that select behaviour by a type or kind value",
+        "Duplicated methods across classes that differ only in the algorithm"
+      ],
+      "benefits": [
+        "Each variant lives in its own class and can be tested in isolation",
+        "New variants are added without editing the existing conditional",
+        "Removes the growing conditional from the client"
+      ],
+      "drawbacks": [
+        "Adds an interface and one class per variant",
+        "The selection logic still has to live somewhere (factory, configuration or DI)",
+        "Indirection makes the control flow harder to follow for small cases"
+      ],
+      "avoid_when": [
+        "There are only two stable variants",
+        "Variants need very different inputs",
+        "The conditional is short and rarely changes"
+      ],
+      "implementation": {
+        "participants": ["Strategy interface", "Concrete strategies", "Context that holds a strategy", "Selection or wiring point"],
+        "steps": [
+          "Extract the common operation into an interface",
+          "Move each conditional branch into its own implementation",
+          "Let the context receive the implementation (constructor, registry or factory)",
+          "Replace the conditional with a call on the interface"
+        ],
+        "new_abstractions": ["Strategy interface", "One class per variant"]
+      },
+      "examples": [
+        {"language": "python", "code": "class ShippingCost(Protocol):\n    def cost(self, order) -> Decimal: ...\n\nclass Checkout:\n    def __init__(self, shipping: ShippingCost):\n        self.shipping = shipping"},
+        {"language": "csharp", "code": "public interface IShippingCost { decimal Cost(Order order); }\npublic class Checkout { private readonly IShippingCost _shipping; public Checkout(IShippingCost shipping) => _shipping = shipping; }"}
+      ],
+      "confidence_notes": [
+        "Strategy, State and Bridge share the same structure; the analyzer reports the structure, not the designer's intent",
+        "An interface with implementations alone is ordinary polymorphism; a delegating context is needed for a likely Strategy"
+      ],
+      "change_affinity": ["new_variant", "extend", "refactor"],
+      "max_status": "likely",
+      "detection": {
+        "existing": [
+          {"all": ["abstraction_with_implementations", "context_holds_abstraction"], "boost": ["abstraction_injected"], "status": "likely", "explanation": "A context delegates to an abstraction that has several implementations."}
+        ],
+        "opportunities": [
+          {"all": ["conditional_dispatch"], "boost": ["many_variants", "high_complexity", "long_function"], "status": "possible", "explanation": "Behaviour is selected by a conditional chain with three or more cases."},
+          {"all": ["type_dispatch"], "boost": ["high_complexity"], "status": "possible", "explanation": "Behaviour is selected by checking the runtime type."},
+          {"all": ["similar_variants"], "status": "possible", "explanation": "Classes expose the same operations without a shared abstraction."}
+        ],
+        "avoid_signals": ["few_variants"]
+      }
+    },
+    {
+      "id": "observer",
+      "name": "Observer",
+      "category": "behavioral",
+      "intent": "Let any number of dependents react to a state change of a subject without the subject knowing their concrete types.",
+      "use_cases": [
+        "Several components must react when an order, document or setting changes",
+        "UI updates, notifications, audit logging or cache invalidation triggered by one event"
+      ],
+      "applicability": [
+        "The set of reacting components changes over time",
+        "The subject should not depend on the reacting components"
+      ],
+      "structural_indicators": [
+        "A collection of listeners with registration methods",
+        "A notification loop calling the same method on every listener",
+        "Language-level events (C# event, EventEmitter)"
+      ],
+      "code_smells": [
+        "A method that calls the same update method on several hard-coded collaborators",
+        "Notification code duplicated in every place that changes the state"
+      ],
+      "benefits": [
+        "New reactions are added without changing the subject",
+        "Subject and observers are loosely coupled"
+      ],
+      "drawbacks": [
+        "Notification order and error handling become implicit",
+        "Forgotten unsubscriptions cause leaks",
+        "Event chains are harder to debug"
+      ],
+      "avoid_when": [
+        "There is exactly one fixed reaction",
+        "The reactions must run in a strict, documented order with shared transactions"
+      ],
+      "implementation": {
+        "participants": ["Subject with subscribe/unsubscribe", "Observer interface", "Concrete observers"],
+        "steps": [
+          "Define an observer interface with the notification method",
+          "Give the subject a list of observers and registration methods",
+          "Replace direct calls with a loop over the observers",
+          "Register the existing reactions as observers at the wiring point"
+        ],
+        "new_abstractions": ["Observer interface", "Registration methods on the subject"]
+      },
+      "examples": [
+        {"language": "python", "code": "class Order:\n    def __init__(self):\n        self._listeners: list[OrderListener] = []\n    def subscribe(self, listener: OrderListener):\n        self._listeners.append(listener)\n    def _changed(self):\n        for listener in self._listeners:\n            listener.order_changed(self)"}
+      ],
+      "confidence_notes": [
+        "A loop over a collection that calls a method is also ordinary batch processing; registration of received objects is required for a confirmed Observer",
+        "Language events (C# event declared and raised) are strong evidence"
+      ],
+      "change_affinity": ["notification"],
+      "detection": {
+        "existing": [
+          {"all": ["subscriber_registration", "collection_notification"], "status": "confirmed", "explanation": "Received objects are stored in a collection and notified in a loop."},
+          {"all": ["event_declared", "event_raised"], "status": "confirmed", "partial_status": "likely", "explanation": "The class declares and raises an event."}
+        ],
+        "opportunities": [
+          {"all": ["repeated_receiver_notification"], "boost": ["high_complexity"], "status": "possible", "explanation": "The same method is called on several hard-coded collaborators."}
+        ]
+      }
+    },
+    {
+      "id": "factory_method",
+      "name": "Factory Method",
+      "category": "creational",
+      "intent": "Move object creation behind a method that returns an abstraction, so clients do not depend on concrete classes.",
+      "use_cases": [
+        "Choosing a concrete implementation from configuration or input",
+        "Centralising construction that is repeated across the code base"
+      ],
+      "applicability": [
+        "Clients create concrete classes that share an abstraction",
+        "The same construction logic is repeated in several places",
+        "Subclasses must decide which concrete product to create"
+      ],
+      "structural_indicators": [
+        "A method whose declared return type is an abstraction and which creates concrete classes",
+        "An abstract or virtual creation method overridden in subclasses"
+      ],
+      "code_smells": [
+        "Type-dependent object construction in conditionals",
+        "The same concrete class instantiated in many places"
+      ],
+      "benefits": [
+        "Clients depend on the abstraction only",
+        "One place to change when a new concrete class is added"
+      ],
+      "drawbacks": [
+        "Adds a creator method or class",
+        "Can hide simple constructor calls behind indirection"
+      ],
+      "avoid_when": [
+        "Only one concrete class exists and no other is planned",
+        "A dependency-injection container already performs the selection"
+      ],
+      "implementation": {
+        "participants": ["Product abstraction", "Concrete products", "Creator method or class"],
+        "steps": [
+          "Make sure the products share an abstraction",
+          "Move the construction (including the selection) into a creator method returning the abstraction",
+          "Replace scattered constructor calls with calls to the creator"
+        ],
+        "new_abstractions": ["Creator method or factory class"]
+      },
+      "examples": [
+        {"language": "csharp", "code": "public static IExporter Create(string format) => format switch { \"csv\" => new CsvExporter(), \"pdf\" => new PdfExporter(), _ => throw new NotSupportedException(format) };"}
+      ],
+      "confidence_notes": [
+        "A static method with a switch over types is a Simple Factory; the classic Factory Method requires an overridden creation method",
+        "Python constructors are recognised by capitalised call names, which is a heuristic"
+      ],
+      "change_affinity": ["creation", "new_variant"],
+      "detection": {
+        "existing": [
+          {"all": ["abstract_creator_overridden"], "status": "confirmed", "explanation": "An abstract or virtual creation method returning an abstraction is overridden by subclasses."},
+          {"all": ["creator_returns_abstraction"], "status": "likely", "explanation": "A method declared to return an abstraction creates concrete implementations."}
+        ],
+        "opportunities": [
+          {"all": ["type_dependent_creation"], "boost": ["many_variants", "high_complexity"], "status": "possible", "explanation": "Conditional branches create different concrete classes."},
+          {"all": ["scattered_creation"], "status": "possible", "explanation": "The same concrete class is constructed in many places."}
+        ]
+      }
+    },
+    {
+      "id": "adapter",
+      "name": "Adapter",
+      "category": "structural",
+      "intent": "Make an existing class with an incompatible interface usable through the interface the client expects.",
+      "use_cases": [
+        "Integrating a third-party SDK or a legacy API behind an existing abstraction",
+        "Replacing a subsystem without changing its clients"
+      ],
+      "applicability": [
+        "An abstraction already exists for the role the new component should play",
+        "The new component cannot be changed to implement it"
+      ],
+      "structural_indicators": [
+        "A class implements the target interface and delegates to a differently shaped adaptee"
+      ],
+      "code_smells": [
+        "Client code converting data and calling a foreign API directly in many places",
+        "Conditionals that branch on which external system is used"
+      ],
+      "benefits": [
+        "Clients keep using the existing abstraction",
+        "The foreign or legacy API is isolated in one class"
+      ],
+      "drawbacks": [
+        "Adds a translation layer that must be kept in sync with both interfaces",
+        "Large interface mismatches lead to complicated adapters"
+      ],
+      "avoid_when": [
+        "The new component can implement the target interface directly",
+        "No abstraction exists yet and only one implementation is planned"
+      ],
+      "implementation": {
+        "participants": ["Target interface (existing)", "Adaptee (new or legacy component)", "Adapter class"],
+        "steps": [
+          "Identify the existing target interface",
+          "Create an adapter class that implements it",
+          "Hold the adaptee in the adapter and translate each call",
+          "Register the adapter where the other implementations are wired"
+        ],
+        "new_abstractions": ["Adapter class"]
+      },
+      "examples": [
+        {"language": "python", "code": "class StripeGateway(PaymentGateway):\n    def __init__(self, client: stripe.Client):\n        self.client = client\n    def charge(self, amount):\n        return self.client.payment_intents.create(amount=int(amount * 100))"}
+      ],
+      "confidence_notes": [
+        "Delegation through a field is also used by Decorator and Proxy; the adaptee must not implement the target interface",
+        "Adapter opportunities are driven by the requested change: the code alone rarely shows an incompatible interface",
+        "Only adaptees that are not defined in the indexed repository (external SDKs and libraries) are reported, because services delegating to their own repositories look structurally identical"
+      ],
+      "change_affinity": ["integration"],
+      "max_status": "likely",
+      "detection": {
+        "existing": [
+          {"all": ["adapter_delegation"], "status": "likely", "explanation": "A class implements an interface by delegating to a collaborator of another type."}
+        ],
+        "opportunities": [
+          {"all": ["abstraction_with_implementations"], "status": "possible", "requires_change": ["integration"], "explanation": "An abstraction with several implementations exists, so a new external component can be adapted to it."}
+        ]
+      }
+    },
+    {
+      "id": "facade",
+      "name": "Facade",
+      "category": "structural",
+      "intent": "Offer one simple entry point to a group of collaborating subsystem classes.",
+      "use_cases": [
+        "Clients repeat the same sequence of calls to several subsystem components",
+        "Hiding a legacy subsystem behind a smaller API"
+      ],
+      "applicability": [
+        "Several clients use the same subset of a subsystem in the same way",
+        "Clients do not need the full power of the subsystem"
+      ],
+      "structural_indicators": [
+        "A class whose methods mostly delegate to three or more collaborator types"
+      ],
+      "code_smells": [
+        "The same call sequence repeated across callers",
+        "Functions that reach into many files of one subsystem"
+      ],
+      "benefits": [
+        "Clients depend on one class instead of many",
+        "The subsystem can change behind a stable entry point"
+      ],
+      "drawbacks": [
+        "A facade can grow into a god class",
+        "Adds a layer that may duplicate subsystem APIs"
+      ],
+      "avoid_when": [
+        "Only one client uses the subsystem",
+        "Clients need fine-grained control over the subsystem"
+      ],
+      "implementation": {
+        "participants": ["Facade class", "Subsystem classes", "Clients"],
+        "steps": [
+          "Identify the repeated call sequence",
+          "Create a facade method that performs it",
+          "Move the clients to the facade one by one"
+        ],
+        "new_abstractions": ["Facade class"]
+      },
+      "examples": [
+        {"language": "python", "code": "class OrderFacade:\n    def place(self, cart):\n        order = self.orders.create(cart)\n        self.payments.charge(order)\n        self.mailer.confirm(order)"}
+      ],
+      "confidence_notes": [
+        "Service classes and controllers often delegate to many collaborators; whether they are intended facades cannot be decided structurally"
+      ],
+      "change_affinity": ["simplify_access", "integration"],
+      "max_status": "likely",
+      "detection": {
+        "existing": [
+          {"all": ["facade_delegation"], "boost": ["high_fan_in"], "status": "possible", "explanation": "A class mostly forwards calls to several collaborator types."}
+        ],
+        "opportunities": [
+          {"all": ["shared_call_sequence"], "boost": ["fan_out_hub"], "status": "possible", "explanation": "Several clients call the same group of subsystem functions."}
+        ]
+      }
+    },
+    {
+      "id": "decorator",
+      "name": "Decorator",
+      "category": "structural",
+      "intent": "Add optional responsibilities to an object by wrapping it in objects that implement the same interface.",
+      "use_cases": [
+        "Logging, caching, retry, authorisation or metrics around an existing service",
+        "Combinable optional features that would otherwise need many subclasses"
+      ],
+      "applicability": [
+        "The behaviour to add is orthogonal to the core logic",
+        "Several optional behaviours must be combinable"
+      ],
+      "structural_indicators": [
+        "A class implements an interface and wraps another instance of that interface"
+      ],
+      "code_smells": [
+        "Subclasses that only add behaviour before or after calling the base implementation",
+        "Cross-cutting code duplicated in many methods"
+      ],
+      "benefits": [
+        "Behaviour is added without modifying the wrapped class",
+        "Decorators can be combined in different orders"
+      ],
+      "drawbacks": [
+        "Many small wrapper classes",
+        "Object identity and wrapping order become important"
+      ],
+      "avoid_when": [
+        "The service has no interface and introducing one is costly",
+        "A framework mechanism (middleware, interceptors, Python decorators) already covers the concern"
+      ],
+      "implementation": {
+        "participants": ["Component interface", "Concrete component", "Decorators holding a component"],
+        "steps": [
+          "Make sure the service is used through an interface",
+          "Create a decorator that implements the interface and holds the wrapped instance",
+          "Forward each call and add the extra behaviour",
+          "Wrap the service where it is created or registered"
+        ],
+        "new_abstractions": ["Decorator class (one per concern)"]
+      },
+      "examples": [
+        {"language": "csharp", "code": "public class LoggingPaymentService : IPaymentService { private readonly IPaymentService _inner; public LoggingPaymentService(IPaymentService inner) => _inner = inner; public Task Pay(Order o) { _log.Info(o.Id); return _inner.Pay(o); } }"}
+      ],
+      "confidence_notes": [
+        "Wrapping the same interface is also how Proxy and Composite are built"
+      ],
+      "change_affinity": ["cross_cutting"],
+      "detection": {
+        "existing": [
+          {"all": ["wrapper_same_interface"], "status": "confirmed", "explanation": "A class implements an interface and forwards to a wrapped instance of the same interface."}
+        ],
+        "opportunities": [
+          {"all": ["subclass_override_chain"], "status": "possible", "explanation": "Subclasses add behaviour around the base implementation."}
+        ]
+      }
+    },
+    {
+      "id": "repository",
+      "name": "Repository",
+      "category": "architectural",
+      "intent": "Mediate between the domain and the persistence layer with a collection-like interface for aggregates.",
+      "use_cases": [
+        "Hiding ORM or SQL access behind domain-oriented methods",
+        "Making business logic testable without a database"
+      ],
+      "applicability": [
+        "Business code queries the database directly in many places",
+        "The persistence technology should be replaceable or mockable"
+      ],
+      "structural_indicators": [
+        "A type with get/find/add/update/delete style operations",
+        "The type depends on a database or ORM API"
+      ],
+      "code_smells": [
+        "Queries duplicated across services",
+        "Business logic mixed with persistence calls"
+      ],
+      "benefits": [
+        "Persistence details live in one place",
+        "Domain logic can be tested with an in-memory implementation"
+      ],
+      "drawbacks": [
+        "Thin repositories over an ORM add little value",
+        "Generic repositories hide query capabilities"
+      ],
+      "avoid_when": [
+        "The ORM context is already used as a unit of work with few queries",
+        "The application is a thin CRUD layer"
+      ],
+      "implementation": {
+        "participants": ["Repository interface", "Persistence implementation", "Domain services using the interface"],
+        "steps": [
+          "Define an interface with the operations the domain needs",
+          "Move the persistence code into an implementation",
+          "Inject the interface into the services"
+        ],
+        "new_abstractions": ["Repository interface", "Repository implementation"]
+      },
+      "examples": [
+        {"language": "csharp", "code": "public interface IOrderRepository { Task<Order?> Find(int id); Task Add(Order order); }"}
+      ],
+      "confidence_notes": [
+        "Operation names are only supporting evidence; a dependency on a persistence API is required",
+        "Supported reliably for C#, Java and Python code that uses recognisable ORM or database types"
+      ],
+      "change_affinity": ["data_access"],
+      "max_status": "likely",
+      "detection": {
+        "existing": [
+          {"all": ["repository_interface", "data_access_dependency"], "status": "likely", "explanation": "A type offers collection-like operations and depends on a persistence API."}
+        ],
+        "opportunities": []
+      }
+    }
+  ]
+}
