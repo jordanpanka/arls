@@ -3,6 +3,8 @@ import '../styles/app.css';
 import { ProjectBar, type Project } from '../components/layout/ProjectBar';
 import { AppBar, Avatar, Box, Button, IconButton, Toolbar, Typography } from '@mui/material';
 import LogoutIcon from "@mui/icons-material/Logout";
+import LockResetIcon from "@mui/icons-material/LockReset";
+import { ChangePassword } from '../components/layout/ChangePassword';
 import { jwtDecode as decodeJwt } from "jwt-decode";
 import { useLocation } from "preact-iso";
 import { RightPanel } from '../components/layout/RightPanel';
@@ -56,6 +58,7 @@ export function App() {
   const [activeView, setActiveView] = useState<AppView>("chat");
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const sidebarsBeforeEvidence = useRef<{ left: boolean, right: boolean } | null>(null);
 
   // The evidence panel needs the room, so the sidebars step aside while it is open.
@@ -190,6 +193,9 @@ export function App() {
               <Typography sx={{ color: "white" }}>
                 {lastName} {firstName}
               </Typography>
+              <IconButton onClick={() => setChangePasswordOpen(true)} aria-label="Jelszó módosítása" title="Jelszó módosítása">
+                <LockResetIcon sx={{ color: "white" }} />
+              </IconButton>
               <IconButton onClick={logout}>
                 <LogoutIcon sx={{ color: "white" }} />
               </IconButton>
@@ -197,6 +203,7 @@ export function App() {
           </Box>
         </Toolbar>
       </AppBar>
+      <ChangePassword open={changePasswordOpen} setOpen={setChangePasswordOpen} />
 
       <Box
         sx={{
