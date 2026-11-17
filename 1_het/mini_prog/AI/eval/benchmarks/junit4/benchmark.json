@@ -1,0 +1,1057 @@
+{
+  "name": "junit4-eight-category-benchmark",
+  "version": "0.2-draft-references",
+  "description": "40-question JUnit 4 benchmark with source-based DRAFT reference answers for 37 items. Three quantitative ranking questions remain null until the configured code metrics and graph are measured. Manually verify all answers and gold evidence against pinned commit before evaluation. Pinned to 890f3c9 (r4.13.2 + 50 commits, the indexed snapshot); answers were written against r4.13.2 and re-checked against the src/main diff, which only changes the JUnitCore.main exit path.",
+  "repository": {
+    "id": "junit4",
+    "url": "https://github.com/junit-team/junit4",
+    "reference": "r4.13.2-50-g890f3c97",
+    "commit_sha": "890f3c972647de378f25e7271d8fbbd9d3456b79",
+    "language": "java"
+  },
+  "category_definitions": {
+    "comprehension": "Local function or class behavior",
+    "call_flow": "Execution order and method-call flow",
+    "dependency": "Inheritance, calls, imports, and structural dependencies",
+    "design_pattern": "Patterns and extension mechanisms evidenced in the code",
+    "multi_source": "Synthesis across multiple files or evidence sources",
+    "architecture": "High-level modules, responsibilities, and abstractions",
+    "change_impact": "Predict effects of hypothetical modifications",
+    "code_quality": "Quantitative metrics, maintainability, and refactoring hotspots"
+  },
+  "questions": [
+    {
+      "id": "junit4-01",
+      "question": "How does JUnitCore run a test class when it is started from the command line?",
+      "category": "comprehension",
+      "reference_answer": "The command-line main method calls the static runMain(String[]), which creates a JUnitCore and invokes the instance runMain with a RealSystem and the command-line class names. runMain prints the version, parses class names and options with JUnitCommandLineParseResult, registers a TextListener, constructs a Request using the default Computer, and calls run(Request). That resolves a Runner; run(Runner) starts the run notification, invokes runner.run(notifier), collects events in a Result listener, and emits run-finished. The static runMain returns 0 if Result.wasSuccessful() is true, otherwise 1, and main passes this value to System.exit.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/JUnitCore.java"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runner/JUnitCore.java",
+          "symbol": "main"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runner/JUnitCore.java",
+          "symbol": "runMain"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runner/JUnitCore.java",
+          "symbol": "run"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Request.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-02",
+      "question": "Which statements does BlockJUnit4ClassRunner wrap around a single test method, and in which order are they applied?",
+      "category": "call_flow",
+      "reference_answer": "For each test, methodBlock constructs the test instance (or a Fail statement if construction fails), then creates InvokeMethod and wraps it, in construction order, with possiblyExpectingExceptions (ExpectException when needed), withPotentialTimeout (FailOnTimeout when configured), withBefores (RunBefores), withAfters (RunAfters), withRules (rule wrappers), and withInterruptIsolation. Wrappers execute outer-to-inner: interrupt isolation and rules can run around setup; normally @Before runs before the timed/exception-checked test invocation and @After runs afterward. Construction order must not be confused with runtime execution order; rule behavior can alter the flow.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java",
+          "symbol": "methodBlock"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java",
+          "symbol": "possiblyExpectingExceptions"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java",
+          "symbol": "withBefores"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java",
+          "symbol": "withAfters"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java",
+          "symbol": "withRules"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-03",
+      "question": "How are methods annotated with @Before executed before each test?",
+      "category": "comprehension",
+      "reference_answer": "BlockJUnit4ClassRunner.withBefores obtains the @Before methods via TestClass.getAnnotatedMethods(Before.class) and wraps the method Statement in RunBefores. When evaluate is invoked, RunBefores invokes the selected setup methods on the current test instance through FrameworkMethod, then evaluates the underlying Statement. Setup runs before each non-ignored test method; if setup throws, the test body is not evaluated, while the enclosing @After wrapper can still perform cleanup.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/internal/runners/statements/RunBefores.java"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/internal/runners/statements/RunBefores.java",
+          "symbol": "evaluate"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java",
+          "symbol": "withBefores"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-04",
+      "question": "How is the timeout attribute of the @Test annotation enforced?",
+      "category": "comprehension",
+      "reference_answer": "BlockJUnit4ClassRunner reads @Test.timeout in withPotentialTimeout. For a positive timeout it wraps the method Statement using FailOnTimeout.builder().withTimeout(timeout, MILLISECONDS).build(next); for zero/nonpositive timeout it leaves the Statement unwrapped. FailOnTimeout evaluates the wrapped test execution under the configured deadline and raises an appropriate timeout failure if execution fails to finish in time; the surrounding runner reports the resulting Throwable as a test failure. The exact threading/interrupt behavior is defined by FailOnTimeout.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/internal/runners/statements/FailOnTimeout.java"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/internal/runners/statements/FailOnTimeout.java",
+          "symbol": "evaluate"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java",
+          "symbol": "withPotentialTimeout"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/Test.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-05",
+      "question": "How do TestRule implementations change the way a test is executed, and where are the rules applied?",
+      "category": "dependency",
+      "reference_answer": "A TestRule implements apply(Statement base, Description description) and returns a Statement that can surround, replace or conditionally run the supplied base Statement. BlockJUnit4ClassRunner.withRules collects @Rule TestRule and MethodRule members, puts them in RuleContainer with order information, and applies them to the method's composed Statement. RuleContainer builds the nesting; evaluating the outer wrapper then executes the rule behaviors and, if appropriate, the test. @ClassRule is applied at the class level by ParentRunner, not by method-level withRules.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/rules/TestRule.java"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/rules/TestRule.java",
+          "symbol": "apply"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/model/Statement.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/rules/RunRules.java"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java",
+          "symbol": "withRules"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-06",
+      "question": "How does the Parameterized runner create a separate test runner for each parameter set?",
+      "category": "design_pattern",
+      "reference_answer": "Parameterized is a ParentRunner whose children are runners for individual parameter sets. It locates a static @Parameters data-providing method, obtains the parameter sets and names, builds TestWithParameters descriptors and uses a ParametersRunnerFactory (normally BlockJUnit4ClassRunnerWithParametersFactory) to create one child Runner for each set. The default child is BlockJUnit4ClassRunnerWithParameters; it creates a test instance with that set (or via @Parameter fields) and executes the class's test methods. Thus each parameter set has its own runner and tests.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/Parameterized.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/parameterized/BlockJUnit4ClassRunnerWithParameters.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/parameterized/BlockJUnit4ClassRunnerWithParametersFactory.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-07",
+      "question": "What happens when assertEquals is called with two different String values?",
+      "category": "comprehension",
+      "reference_answer": "For unequal String values, the String-specialized assertEquals overload delegates to the comparison path that checks equality and, when the values differ, throws org.junit.ComparisonFailure rather than silently returning. ComparisonFailure extends AssertionError and formats a comparison message that highlights the differing substring/context. If the call occurs inside a JUnit test, the AssertionError is reported as a failed test through the normal failure-notification path.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/Assert.java"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/Assert.java",
+          "symbol": "assertEquals"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/ComparisonFailure.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-08",
+      "question": "How are test failures reported to registered RunListeners?",
+      "category": "multi_source",
+      "reference_answer": "A failing test produces a Throwable caught by the runner's test-execution logic (such as ParentRunner.runLeaf), which uses EachTestNotifier.addFailure to construct a Failure for the relevant Description. RunNotifier.fireTestFailure dispatches that Failure to registered RunListener.testFailure callbacks; JUnitCore also installs Result's listener, which stores failures for the final Result. Listener synchronization/wrapping is managed by RunNotifier.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/notification/RunNotifier.java"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runner/notification/RunNotifier.java",
+          "symbol": "fireTestFailure"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runner/notification/RunListener.java",
+          "symbol": "testFailure"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/internal/runners/model/EachTestNotifier.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-09",
+      "question": "How does @Ignore affect the execution and reporting of an individual test method?",
+      "category": "comprehension",
+      "reference_answer": "BlockJUnit4ClassRunner.runChild checks isIgnored(method), which inspects the @Ignore annotation. For an ignored method it calls RunNotifier.fireTestIgnored with the test Description rather than constructing/evaluating the method Statement. Registered listeners, including Result's listener, record it as ignored. The skipped test body, @Before and @After method-level chain are not executed for that ignored method.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/Ignore.java"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java",
+          "symbol": "isIgnored"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java",
+          "symbol": "runChild"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-10",
+      "question": "Trace the execution path from JUnitCore.run(Request) to the runner and the final Result object.",
+      "category": "call_flow",
+      "reference_answer": "JUnitCore.run(Request) obtains request.getRunner() and delegates to run(Runner). The latter constructs Result and its RunListener, registers that listener with RunNotifier, fires testRunStarted with the runner's Description, invokes Runner.run(notifier), emits testRunFinished(Result), then removes its result listener in finally and returns the Result. Child runners send individual test events to the same notifier, allowing Result to aggregate run/failure/ignore counts.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/JUnitCore.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Request.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Runner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Result.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-11",
+      "question": "In which order are @BeforeClass, test methods, and @AfterClass executed for a test class?",
+      "category": "call_flow",
+      "reference_answer": "ParentRunner.run creates a class-level Statement using classBlock: childrenInvoker is wrapped with RunBefores for @BeforeClass, RunAfters for @AfterClass, plus @ClassRule wrappers and interrupt isolation when appropriate. At evaluation time the @BeforeClass methods execute before child test methods, which each have their own per-method @Before/test/@After chain, and @AfterClass executes after the children, including when a prior child fails. A class-level setup failure can prevent child execution; class-level teardown is still designed to run through the enclosing RunAfters.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java",
+          "symbol": "classBlock"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java",
+          "symbol": "withBeforeClasses"
+        },
+        {
+          "kind": "symbol",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java",
+          "symbol": "withAfterClasses"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-12",
+      "question": "How does a thrown test exception propagate from Statement.evaluate() to a Failure notification?",
+      "category": "call_flow",
+      "reference_answer": "An invoked test is represented by a Statement whose evaluate may throw. BlockJUnit4ClassRunner.runChild passes the method Statement to ParentRunner.runLeaf, which fires testStarted, executes evaluate, and catches failures. Failures are handed to EachTestNotifier.addFailure, which wraps the Throwable and test Description in a Failure and delegates to RunNotifier.fireTestFailure. Registered RunListener.testFailure methods (including the Result listener) receive the event; testFinished is emitted in the normal finally path.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/internal/runners/model/EachTestNotifier.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/notification/Failure.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/notification/RunNotifier.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-13",
+      "question": "Trace how a test method annotated with @Test(expected=...) is invoked and how the expected exception is checked.",
+      "category": "call_flow",
+      "reference_answer": "BlockJUnit4ClassRunner.methodBlock creates an InvokeMethod statement, then possiblyExpectingExceptions reads @Test.expected. When the expected type is not Test.None it wraps invocation in ExpectException. ExpectException.evaluate fails if no exception occurs, succeeds when the thrown exception is assignable to the expected type, and reports a mismatch when a different exception is thrown. Subsequent timeout, lifecycle and rule wrappers surround this expected-exception check.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/internal/runners/statements/ExpectException.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/Test.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-14",
+      "question": "How are Runner, ParentRunner, and BlockJUnit4ClassRunner related through inheritance and extension points?",
+      "category": "dependency",
+      "reference_answer": "Runner is the abstract execution interface (getDescription and run). ParentRunner<T> extends Runner and implements child enumeration, description, filtering, ordering, class-level lifecycle and scheduling while leaving child-specific behavior to subclasses. BlockJUnit4ClassRunner extends ParentRunner<FrameworkMethod>, identifies @Test methods, builds their Statement execution chains and runs each test via runLeaf. Extension points include ParentRunner.getChildren/describeChild/runChild and the protected method-block builder methods in BlockJUnit4ClassRunner.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Runner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-15",
+      "question": "Which components collaborate to filter and sort test methods before execution?",
+      "category": "dependency",
+      "reference_answer": "Request/Runner filtering and ordering use Filter, Filterable, Sorter/Orderer and their related interfaces. ParentRunner implements filtering and ordering over its cached child list, while BlockJUnit4ClassRunner supplies methods as FrameworkMethod children. Method selection and initial order are influenced by TestClass and the method sorter (including @FixMethodOrder), while external Request.filterWith / sorting operations can further restrict or reorder executable children. Child Descriptions provide the identity used by filters and sorters.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/manipulation/Filter.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/manipulation/Sorter.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-16",
+      "question": "How do Description, RunNotifier, and RunListener depend on each other during test execution?",
+      "category": "dependency",
+      "reference_answer": "Runner produces a Description tree for the tests and passes a RunNotifier to its run method. RunNotifier sends lifecycle events that carry Description objects (or Failure containing a Description) to registered RunListener implementations. A Description identifies the test or suite to which an event refers, while listeners observe starts, finishes, failures, ignores and assumptions; neither Description nor RunListener itself executes tests.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Description.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/notification/RunNotifier.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/notification/RunListener.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-17",
+      "question": "Which classes participate in collecting and executing test methods from a TestClass?",
+      "category": "dependency",
+      "reference_answer": "BlockJUnit4ClassRunner uses TestClass.getAnnotatedMethods(Test.class) through computeTestMethods to find test methods as FrameworkMethod objects; ParentRunner maintains and optionally filters/orders those children. During execution ParentRunner schedules each child and invokes BlockJUnit4ClassRunner.runChild. For each non-ignored FrameworkMethod, methodBlock creates the test instance and Statement chain; runLeaf evaluates it and reports events through RunNotifier.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/model/TestClass.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/model/FrameworkMethod.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-18",
+      "question": "How does the Statement abstraction support composition of test execution behavior?",
+      "category": "design_pattern",
+      "reference_answer": "Statement is an abstraction with evaluate() that represents an executable test action. InvokeMethod is the innermost invocation statement; decorators such as ExpectException, FailOnTimeout, RunBefores, RunAfters, RunRules and other rule-provided Statements wrap an existing Statement and add cross-cutting behavior. Because each wrapper calls or conditionally skips its inner Statement, runners compose execution behavior without duplicating the core test invocation logic. This is a decorator/composite-style design.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/model/Statement.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/internal/runners/statements/RunBefores.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/internal/runners/statements/RunAfters.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/internal/runners/statements/InvokeMethod.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-19",
+      "question": "How does the RunListener notification mechanism implement an observer-style extension point?",
+      "category": "design_pattern",
+      "reference_answer": "JUnit 4 implements an observer-style mechanism: clients register RunListener objects with JUnitCore/RunNotifier, and the runner emits test lifecycle events through RunNotifier. RunNotifier dispatches callbacks such as testStarted, testFailure, testFinished and testIgnored to registered listeners; listeners can collect results, print progress or integrate with tools without changing runner implementation. RunNotifier manages listener registration, removal and dispatch/error handling.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/notification/RunListener.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/notification/RunNotifier.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Description.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-20",
+      "question": "How do RunnerBuilder and Computer help construct runners for test classes and suites?",
+      "category": "design_pattern",
+      "reference_answer": "Computer constructs a suite Runner for requested test classes and delegates building individual class runners to RunnerBuilder. RunnerBuilder supports annotated classes (via @RunWith), suite classes and fallback/default runner selection; Computer can control creation strategy, including suite or class parallelization variants. Request.classes(computer, classes) uses these pieces to obtain the top-level Runner tree ultimately executed by JUnitCore.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/model/RunnerBuilder.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Computer.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Request.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-21",
+      "question": "How does RuleChain compose multiple TestRule instances, and how does ordering affect execution?",
+      "category": "design_pattern",
+      "reference_answer": "RuleChain explicitly builds a nested sequence of TestRules using outerRule and around. Its apply method wraps the base Statement in the chosen order so the declared outer rules execute before/after the inner rules and ultimately the test. The outermost rule begins first and finishes last, provided each rule delegates to its inner Statement. Changing the chain order changes setup/teardown nesting and the order in which exceptions are observed or transformed.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/rules/RuleChain.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/rules/TestRule.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/model/Statement.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-22",
+      "question": "How is the @Test(timeout=...) value passed from the annotation through the runner to timeout execution?",
+      "category": "multi_source",
+      "reference_answer": "The @Test annotation exposes timeout() as a millisecond count. BlockJUnit4ClassRunner.methodBlock calls withPotentialTimeout, which reads method.getAnnotation(Test.class) and getTimeout. When the timeout is positive it creates a FailOnTimeout Statement around the invocation/expected-exception portion of the chain. At evaluate(), FailOnTimeout runs the inner Statement under the deadline and raises a timeout-related failure on expiry; ParentRunner/runLeaf sends it through the ordinary Failure/RunNotifier/RunListener reporting path.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/Test.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/internal/runners/statements/FailOnTimeout.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-23",
+      "question": "How do a parameterized test data provider, runner factory, and constructed test instance work together?",
+      "category": "multi_source",
+      "reference_answer": "Parameterized discovers the static @Parameters method and turns each data row into a TestWithParameters descriptor. A ParametersRunnerFactory (the default is BlockJUnit4ClassRunnerWithParametersFactory) creates a per-set Runner. The resulting BlockJUnit4ClassRunnerWithParameters creates instances using the set's constructor arguments or supported @Parameter fields, and runs the ordinary @Test methods against that instance. Each set contributes separately described test executions to the parent Parameterized runner.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/Parameterized.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/parameterized/ParametersRunnerFactory.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/parameterized/BlockJUnit4ClassRunnerWithParameters.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-24",
+      "question": "How are failures collected into Result and presented by the command-line runner?",
+      "category": "multi_source",
+      "reference_answer": "While the tests run, exceptions become Failure objects and are dispatched through RunNotifier.fireTestFailure. JUnitCore.run(Runner) registers a listener produced by Result.createListener; it accumulates failures, ignore counts and run counts and records run duration. In command-line mode JUnitCore.runMain also registers TextListener, which outputs progress and, at completion, the failure details/summary. main uses Result.wasSuccessful() to choose its exit code.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/JUnitCore.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Result.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/notification/Failure.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/internal/TextListener.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-25",
+      "question": "How do @Rule, RuleContainer, and BlockJUnit4ClassRunner determine which rules wrap a test?",
+      "category": "multi_source",
+      "reference_answer": "BlockJUnit4ClassRunner collects @Rule fields and methods separately as TestRule and MethodRule values. It adds them to RuleContainer, avoiding double application when the same object implements both interfaces, and applies the container to the method Statement. RuleContainer sorts relevant rules using @Rule(order=...) / rule type precedence as implemented at this commit, producing nested wrappers. A rule's placement determines whether it runs around lifecycle, timeout and method invocation; the exact ordering should be established from RuleContainer rather than inferred from annotation declaration order.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/Rule.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/RuleContainer.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/rules/TestRule.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-26",
+      "question": "What are the main responsibilities of JUnitCore, Request, Runner, RunNotifier, and Result in the execution architecture?",
+      "category": "architecture",
+      "reference_answer": "JUnitCore orchestrates the run and result collection and offers a command-line/programmatic facade. Request represents which tests to execute and resolves that request to a Runner. Runner describes and executes the test tree and emits events through RunNotifier. RunNotifier dispatches test lifecycle events to RunListener observers. Result accumulates those events via its own listener to expose run counts, failures, ignores, duration and success status. These responsibilities separate test selection, execution, event dispatch and result aggregation.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/JUnitCore.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Request.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Runner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/notification/RunNotifier.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Result.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-27",
+      "question": "How does JUnit 4 separate class-level lifecycle handling from per-test method execution?",
+      "category": "architecture",
+      "reference_answer": "ParentRunner builds the class-level Statement around childrenInvoker, including @BeforeClass, @AfterClass and @ClassRule behavior. BlockJUnit4ClassRunner builds a new method-level Statement for each non-ignored @Test using per-method instance creation, @Before, @After, exception expectation, timeout and @Rule wrappers. Thus class-wide setup/teardown surrounds all children, while method setup/teardown surrounds an individual test invocation.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/internal/runners/statements/RunBefores.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-28",
+      "question": "How can custom Runner implementations be integrated using @RunWith, and what responsibilities must they satisfy?",
+      "category": "architecture",
+      "reference_answer": "A test class selects a custom Runner with @RunWith(CustomRunner.class). During request/runner construction, the annotated builder instantiates the named Runner (typically via a constructor accepting Class<?>). The custom Runner must provide a meaningful getDescription() and implement run(RunNotifier) with appropriate execution and notifications. It can extend ParentRunner or BlockJUnit4ClassRunner to reuse discovery, lifecycle, filtering and reporting rather than implementing everything from scratch.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/RunWith.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Runner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-29",
+      "question": "How are suite runners and parameterized runners organized relative to the core Runner abstraction?",
+      "category": "architecture",
+      "reference_answer": "All suite and parameterized implementations ultimately extend the Runner abstraction. Suite extends ParentRunner<Runner> and holds child runners for classes; Parameterized extends Suite/uses child runners so that each parameter set becomes a separately executing child. Their getDescription/run behavior participates in the same tree and RunNotifier protocol as ordinary BlockJUnit4ClassRunner tests, enabling nested and heterogeneous suites.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/Suite.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/Parameterized.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Runner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-30",
+      "question": "How does JUnit 4 provide compatibility with older JUnit 3-style tests?",
+      "category": "architecture",
+      "reference_answer": "JUnitCore is designed to run JUnit 3.8.x tests as well as JUnit 4 tests. It has a run(junit.framework.Test) overload using JUnit38ClassRunner, and runner builders/adapters can wrap legacy junit.framework.TestCase/TestSuite into the modern Runner-based execution interface. This allows legacy and annotation-based tests to coexist under the same JUnitCore, RunNotifier and Result reporting workflow.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/internal/runners/JUnit38ClassRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Request.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/JUnit4.java"
+        }
+      ],
+      "reference_answer_status": "draft_source_based",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-31",
+      "question": "Which production classes and tests would likely need changes to add a new RunListener event when a test starts?",
+      "category": "change_impact",
+      "reference_answer": "To add a genuinely new lifecycle callback, extend the RunListener API and add a corresponding RunNotifier dispatch method, then update the execution location where the new event is fired (likely ParentRunner.runLeaf or BlockJUnit4ClassRunner.runChild for method starts). Review Result/TextListener or third-party listeners only if the event must affect their output/state, and add notification ordering, listener-exception and ignored-test regression tests. Note that JUnit 4 already has a testStarted event: clarify the new semantics before modifying this path.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/notification/RunNotifier.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/notification/RunListener.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/internal/runners/model/EachTestNotifier.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java"
+        }
+      ],
+      "reference_answer_status": "source_review_required",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-32",
+      "question": "What components could be affected by changing the default ordering of test methods?",
+      "category": "change_impact",
+      "reference_answer": "Test method ordering can depend on the method discovery/order logic (TestClass and MethodSorter), @FixMethodOrder, and ParentRunner.getFilteredChildren/sort/order behavior. Changes can affect BlockJUnit4ClassRunner and any ParentRunner subclasses, as well as Request/Sorter/Orderer interactions. Review tests that assume deterministic discovery or execution order, filtering/sorting regression tests, parameterized/suite runs and scheduler behavior; exact files depend on which ordering policy is changed.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/manipulation/Sorter.java"
+        }
+      ],
+      "reference_answer_status": "source_review_required",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-33",
+      "question": "What changes would be needed to introduce a new parameter in the @Test annotation and enforce it at execution time?",
+      "category": "change_impact",
+      "reference_answer": "Extend the @Test annotation with the new attribute (including default value), decide its semantics and backward-compatible default, and update BlockJUnit4ClassRunner methodBlock or a suitable Statement builder to enforce the attribute at runtime. If it interacts with existing timeout/expected handling, update wrapper composition accordingly. Add annotation parsing, successful and failing enforcement, edge-case, runner integration and inheritance/compatibility tests; third-party custom runners may not honor the new attribute without changes.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/Test.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/model/Statement.java"
+        }
+      ],
+      "reference_answer_status": "source_review_required",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-34",
+      "question": "Which components and regression tests should be reviewed when changing how TestRule and MethodRule precedence is resolved?",
+      "category": "change_impact",
+      "reference_answer": "Inspect BlockJUnit4ClassRunner.withRules, its RuleContainer, RuleCollector, getTestRules and rules methods, and the @Rule(order) contract. Changing precedence changes which Statement wrapper is outer or inner and therefore before/after ordering, exception handling and whether mixed MethodRule/TestRule implementations run once. Regression tests should cover multiple rules, duplicate dual-interface rules, explicit orders, field-versus-method rules, RuleChain, failures and @Before/@After interactions.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/RuleContainer.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/rules/TestRule.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/rules/MethodRule.java"
+        }
+      ],
+      "reference_answer_status": "source_review_required",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-35",
+      "question": "How would changing the policy for timeout-related failures affect the execution and reporting path?",
+      "category": "change_impact",
+      "reference_answer": "Timeout policy changes principally affect @Test.timeout interpretation, BlockJUnit4ClassRunner.withPotentialTimeout and FailOnTimeout (including its builder, worker thread, deadline and failure construction). The resulting Throwable still propagates through Statement.evaluate -> ParentRunner.runLeaf -> EachTestNotifier -> RunNotifier -> listeners/Result. Check tests for timeout expiration, successful completion, interruption, expected exceptions, @Before/@After behavior, test cancellation and correctly reported Failure messages/types. Exact modified files depend on whether only the error message, deadline policy or execution behavior changes.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/internal/runners/statements/FailOnTimeout.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/notification/Failure.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/notification/RunNotifier.java"
+        }
+      ],
+      "reference_answer_status": "source_review_required",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-36",
+      "question": "Which five production methods have the highest cyclomatic complexity according to the configured metric analyzer?",
+      "category": "code_quality",
+      "reference_answer": null,
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/JUnitCore.java"
+        }
+      ],
+      "reference_answer_status": "requires_empirical_measurement",
+      "reference_answer_instructions": "Requires running the configured complexity analyzer on all production methods at the pinned commit, then sorting descending with an explicit tie-breaking rule; report fully qualified method names, file paths, measured scores and tool/version.",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-37",
+      "question": "Which five classes have the highest fan-out in the extracted dependency graph, and what dependencies account for that ranking?",
+      "category": "code_quality",
+      "reference_answer": null,
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/JUnitCore.java"
+        }
+      ],
+      "reference_answer_status": "requires_empirical_measurement",
+      "reference_answer_instructions": "Requires extracting the pinned-commit graph, defining fan-out edge types and direction (e.g. distinct outbound DEPENDS_ON/CALLS/USES targets), then computing and exporting the top five classes and neighbor relations.",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-38",
+      "question": "Which methods in the test execution path are potential refactoring hotspots when considering cyclomatic complexity and method length together?",
+      "category": "code_quality",
+      "reference_answer": "A defensible hotspot analysis first enumerates the production methods on the test execution path (for example, JUnitCore.run, ParentRunner.run/classBlock/runLeaf, BlockJUnit4ClassRunner.methodBlock/withRules and related helpers), then joins independently measured cyclomatic complexity with method length using the configured analyzer. Rank or flag methods by explicit thresholds and include actual measured values, file paths and definitions. The named methods are candidate inspection targets, not verified hotspots without analyzer output.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/JUnitCore.java"
+        }
+      ],
+      "reference_answer_status": "source_review_required",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-39",
+      "question": "Which classes in the test notification subsystem have the highest structural coupling, and how was the coupling metric calculated?",
+      "category": "code_quality",
+      "reference_answer": null,
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/notification/RunNotifier.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/notification/RunListener.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runner/Result.java"
+        }
+      ],
+      "reference_answer_status": "requires_empirical_measurement",
+      "reference_answer_instructions": "Requires calculating structural coupling for the notification subsystem with an explicit metric definition and edge-type selection, then listing the highest-scoring classes with actual values and graph evidence.",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    },
+    {
+      "id": "junit4-40",
+      "question": "Which complex and highly connected components would be most important to regression-test after changing runner behavior?",
+      "category": "code_quality",
+      "reference_answer": "Identify components on the runner execution path (such as ParentRunner, BlockJUnit4ClassRunner, RunNotifier, RuleContainer and related Statement wrappers), then combine measured complexity and graph connectivity to prioritize regression testing. A high-complexity/high-coupling component whose execution semantics change warrants tests for lifecycle order, failures, timeouts, rules, filtering and listener notifications. The exact highest-priority components require real analyzer and graph outputs; names here are candidates, not a proven ranking.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/ParentRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+        },
+        {
+          "kind": "file",
+          "path": "src/main/java/org/junit/runners/RuleContainer.java"
+        }
+      ],
+      "reference_answer_status": "source_review_required",
+      "reference_source_commit": "890f3c972647de378f25e7271d8fbbd9d3456b79"
+    }
+  ]
+}

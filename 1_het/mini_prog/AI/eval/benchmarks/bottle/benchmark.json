@@ -1,0 +1,579 @@
+{
+  "name": "bottle-40-questions",
+  "version": "0.2-draft-references",
+  "description": "40-question eight-category Bottle benchmark. Pinned to master at aba0c1a (0.14-dev), the snapshot indexed in CodeMind; gold evidence re-validated on this commit. Reference answers and evidence are draft and require verification against the pinned commit. Gold symbols that are module-level variables or do not exist in the source (request, response, TEMPLATE_PATH, server_names, Plugin, callback, create_cookie, decode_signed) were replaced by the functions and classes that implement them. Bottle is a single-module framework, so file-level recall is uninformative; symbol-level metrics matter. Questions bottle-36..bottle-39 need measured metrics and have no reference answer.",
+  "repository": {
+    "id": "bottle",
+    "url": "https://github.com/bottlepy/bottle",
+    "reference": "master@aba0c1a (0.14-dev)",
+    "commit_sha": "aba0c1a7ee59ed851db001d100b6a792b54a94a3",
+    "language": "python"
+  },
+  "category_definitions": {
+    "comprehension": "Local behavior and responsibilities",
+    "call_flow": "Execution paths and ordering",
+    "dependency": "Dependencies and structural relationships",
+    "design_pattern": "Design patterns and extension mechanisms",
+    "multi_source": "Information spanning multiple subsystems",
+    "architecture": "System design and tradeoffs",
+    "change_impact": "Hypothetical modification impact",
+    "code_quality": "Measured code quality and maintenance hotspots"
+  },
+  "questions": [
+    {
+      "id": "bottle-01",
+      "question": "What does the Bottle class represent and how are routes registered?",
+      "category": "comprehension",
+      "reference_answer": "Bottle is a WSGI application container holding routes, callbacks, plugins and configuration. Its route decorator creates Route instances and registers them with the application router.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "route"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "add_route"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Route"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Router"}
+      ]
+    },
+    {
+      "id": "bottle-02",
+      "question": "How does Router distinguish static paths from dynamic paths?",
+      "category": "comprehension",
+      "reference_answer": "Router maintains lookup structures for static routes and compiled patterns for dynamic wildcard routes. It matches the HTTP method and URL path and extracts named URL arguments when a dynamic rule matches.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Router"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "add"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "match"}
+      ]
+    },
+    {
+      "id": "bottle-03",
+      "question": "How does Bottle expose the current request and response during a callback?",
+      "category": "comprehension",
+      "reference_answer": "Request and response objects are bound to the current execution context through Bottle local proxies; the WSGI handling path binds request environment and response state for the active request.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "LocalRequest"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "LocalResponse"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "_handle"}
+      ]
+    },
+    {
+      "id": "bottle-04",
+      "question": "How does the framework generate a response from a route callback return value?",
+      "category": "comprehension",
+      "reference_answer": "The route callback result is processed by the application response conversion logic: supported text or bytes, iterables and HTTPResponse-like results are converted into a WSGI response with headers and status.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "_cast"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "HTTPResponse"}
+      ]
+    },
+    {
+      "id": "bottle-05",
+      "question": "What is the role of the HTTPError class?",
+      "category": "comprehension",
+      "reference_answer": "HTTPError represents an HTTP error response with a status code and optional body or exception context; application error handling turns it into a response and may invoke a registered error handler.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "HTTPError"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "HTTPResponse"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"}
+      ]
+    },
+    {
+      "id": "bottle-06",
+      "question": "Trace an incoming WSGI request from Bottle.__call__ to the selected route callback.",
+      "category": "call_flow",
+      "reference_answer": "The WSGI server invokes the Bottle application, which establishes request and response context, runs request dispatching, matches the route using Router, calls the selected Route callback, handles exceptions, and produces the WSGI response.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "__call__"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "wsgi"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "_handle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "match"}
+      ]
+    },
+    {
+      "id": "bottle-07",
+      "question": "How are route wildcards parsed and passed as keyword arguments to callbacks?",
+      "category": "call_flow",
+      "reference_answer": "During route registration the router compiles wildcard rules and associated filters. When matching a dynamic path it converts captured values with configured filter functions and passes the resulting URL argument dictionary to the selected callback.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Router"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "add"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "match"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Route"}
+      ]
+    },
+    {
+      "id": "bottle-08",
+      "question": "Trace how a returned HTTPError becomes the final error response.",
+      "category": "call_flow",
+      "reference_answer": "The dispatcher handles an HTTPError as a response-level error, applies the configured error handler when appropriate, then prepares status, headers and response body through the WSGI response path.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "_handle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "_cast"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "HTTPError"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "HTTPResponse"}
+      ]
+    },
+    {
+      "id": "bottle-09",
+      "question": "How is a plugin applied to a route callback before a request is handled?",
+      "category": "call_flow",
+      "reference_answer": "On route preparation, the framework builds a wrapped callback by applying applicable application and route-specific plugins. The resulting callable is cached until the route is reset, then invoked during request dispatch.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Route"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "prepare"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "reset"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "install"}
+      ]
+    },
+    {
+      "id": "bottle-10",
+      "question": "How does the template() helper find and render a template?",
+      "category": "call_flow",
+      "reference_answer": "The template helper selects an engine, resolves source or a named template using template paths and caching, constructs or reuses the template object, and invokes rendering with supplied variables.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "template"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseTemplate"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "SimpleTemplate"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "search"}
+      ]
+    },
+    {
+      "id": "bottle-11",
+      "question": "What are the structural relationships between Bottle, Route and Router?",
+      "category": "dependency",
+      "reference_answer": "Bottle owns a Router and registered Route objects. Each Route stores its application, rule, method and callback; Bottle adds route information into Router, which returns a matching Route with URL arguments.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Route"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Router"}
+      ]
+    },
+    {
+      "id": "bottle-12",
+      "question": "How do Request, BaseRequest and the request proxy relate?",
+      "category": "dependency",
+      "reference_answer": "The public request proxy resolves to the request object for the current context. The underlying BaseRequest implements the HTTP request interface using a WSGI environ mapping. Verify subclass/proxy names on the pinned version.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseRequest"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "LocalRequest"}
+      ]
+    },
+    {
+      "id": "bottle-13",
+      "question": "How do HTTPResponse, HTTPError and BaseResponse contribute to response generation?",
+      "category": "dependency",
+      "reference_answer": "BaseResponse provides status, headers and cookies; HTTPResponse represents a response that can be used directly by dispatch; HTTPError specializes HTTPResponse for errors. Their inheritance and usage must be checked in the pinned source.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseResponse"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "HTTPResponse"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "HTTPError"}
+      ]
+    },
+    {
+      "id": "bottle-14",
+      "question": "How do route-level plugins interact with application-wide plugin registrations?",
+      "category": "dependency",
+      "reference_answer": "Bottle tracks application-installed plugins while Route holds route-specific apply/skip settings. Route preparation combines applicable plugins, and changes trigger reset/rebuilding of wrapped callbacks.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "install"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "reset"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Route"}
+      ]
+    },
+    {
+      "id": "bottle-15",
+      "question": "What dependencies connect Route, Router and URL building?",
+      "category": "dependency",
+      "reference_answer": "Router stores named route patterns and building metadata; Route encapsulates rules and names; Bottle get_url delegates to the router URL builder and takes application mount/script context into account.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Route"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Router"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "build"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "get_url"}
+      ]
+    },
+    {
+      "id": "bottle-16",
+      "question": "Which design pattern is used by server adapters, and how does run() select a server?",
+      "category": "design_pattern",
+      "reference_answer": "Bottle defines a server-adapter abstraction for multiple WSGI servers. The run helper selects or constructs an adapter by name or supplied instance and uses it to serve the WSGI application; this is a Strategy/Adapter-style extension point.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "ServerAdapter"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "run"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "WSGIRefServer"}
+      ]
+    },
+    {
+      "id": "bottle-17",
+      "question": "How does the plugin system act as a decorator mechanism for callbacks?",
+      "category": "design_pattern",
+      "reference_answer": "Plugins are callables or objects implementing apply. They wrap callbacks to add cross-cutting behavior without changing each route implementation, which follows the decorator/wrapper pattern.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Route"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "_make_callback"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "JSONPlugin"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "install"}
+      ]
+    },
+    {
+      "id": "bottle-18",
+      "question": "How does the Route abstraction separate registration from execution?",
+      "category": "design_pattern",
+      "reference_answer": "Route stores the mapping and configuration for a path/method and lazily exposes a prepared callback; the dispatcher uses that prepared callable, separating declarative routing configuration from callback execution.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Route"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "prepare"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "_make_callback"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"}
+      ]
+    },
+    {
+      "id": "bottle-19",
+      "question": "How do template engine classes provide interchangeable rendering behavior?",
+      "category": "design_pattern",
+      "reference_answer": "A shared template interface defines preparation/rendering behavior, and template engine implementations encapsulate parsing and rendering details. The template helper selects an engine without changing the callers.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseTemplate"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "SimpleTemplate"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "template"}
+      ]
+    },
+    {
+      "id": "bottle-20",
+      "question": "How does the request/response proxy mechanism isolate request-specific state?",
+      "category": "design_pattern",
+      "reference_answer": "Proxy objects expose convenient module-level request and response names while resolving their target for the currently handled request, avoiding direct dependence on a single process-global request object.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "LocalRequest"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "LocalResponse"}
+      ]
+    },
+    {
+      "id": "bottle-21",
+      "question": "How do routing, request parsing and response conversion cooperate for a POST endpoint?",
+      "category": "multi_source",
+      "reference_answer": "The application matches method/path to a route, request helpers read body and form or JSON data, the route callback processes it, and response casting prepares output with headers and status for WSGI.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Route"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Router"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseRequest"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "_cast"}
+      ]
+    },
+    {
+      "id": "bottle-22",
+      "question": "How is a static file served, including response headers and conditional requests?",
+      "category": "multi_source",
+      "reference_answer": "The static_file helper resolves and validates a file under a root, determines MIME and related headers and returns an HTTP response suitable for file streaming; conditional and range behavior should be confirmed on the pinned version.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "static_file"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "HTTPResponse"}
+      ]
+    },
+    {
+      "id": "bottle-23",
+      "question": "How are application errors handled and displayed using the error handler system?",
+      "category": "multi_source",
+      "reference_answer": "The application catches supported error conditions, uses registered handlers or defaults to create an error body and then processes the resulting HTTP response. HTTPError and Bottle error registration participate in this flow.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "error"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "HTTPError"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "_handle"}
+      ]
+    },
+    {
+      "id": "bottle-24",
+      "question": "How do cookie utilities support signed cookie storage and retrieval?",
+      "category": "multi_source",
+      "reference_answer": "Response helpers serialize cookie values and optionally sign them with a secret; request helpers retrieve and verify signed values using corresponding cryptographic utilities. Signed cookies provide integrity, not confidentiality.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseRequest"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseResponse"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "get_cookie"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "set_cookie"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "cookie_encode"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "cookie_decode"}
+      ]
+    },
+    {
+      "id": "bottle-25",
+      "question": "How are mounted sub-applications integrated with request dispatch and URL paths?",
+      "category": "multi_source",
+      "reference_answer": "A parent Bottle application can mount another Bottle app or WSGI app under a prefix. The framework adjusts routes or dispatch context and forwards requests while preserving the child application behavior according to mount type.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "mount"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "_mount_app"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "_mount_wsgi"}
+      ]
+    },
+    {
+      "id": "bottle-26",
+      "question": "Describe the major subsystems of Bottle and their responsibilities.",
+      "category": "architecture",
+      "reference_answer": "The single-file framework comprises WSGI application dispatch, route registration/matching, request and response objects, plugin callback wrapping, template rendering, server adapters and HTTP utilities.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Router"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Route"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseRequest"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseResponse"}
+      ]
+    },
+    {
+      "id": "bottle-27",
+      "question": "What is the architectural reason for distributing Bottle as a single Python module?",
+      "category": "architecture",
+      "reference_answer": "Bottle is intentionally designed as a lightweight, deployable single-module WSGI framework with standard-library dependencies, while exposing extension points for templates, plugins and server adapters.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "run"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "template"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "ServerAdapter"}
+      ]
+    },
+    {
+      "id": "bottle-28",
+      "question": "How are WSGI responsibilities separated from application routing logic?",
+      "category": "architecture",
+      "reference_answer": "WSGI entry points handle environ/start_response integration and response iteration; router and route abstractions decide which application callback handles a path/method; request/response helpers translate HTTP data.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "__call__"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "wsgi"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "_handle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Router"}
+      ]
+    },
+    {
+      "id": "bottle-29",
+      "question": "Which extensibility mechanisms are available without changing the core request dispatcher?",
+      "category": "architecture",
+      "reference_answer": "Developers can register routes, install plugins, provide template adapters, mount applications, add error handlers and select server adapters instead of rewriting core WSGI dispatch.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "install"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "mount"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "error"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseTemplate"}
+      ]
+    },
+    {
+      "id": "bottle-30",
+      "question": "What are the architectural trade-offs of the monolithic bottle.py file for maintenance?",
+      "category": "architecture",
+      "reference_answer": "Single-file distribution simplifies deployment and reduces external dependencies but concentrates responsibilities and may complicate module-level navigation, change isolation and static dependency analysis; these are analytical trade-offs, not measured defects.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Router"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseRequest"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseTemplate"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "ServerAdapter"}
+      ]
+    },
+    {
+      "id": "bottle-31",
+      "question": "Which components and tests could be affected by adding a new wildcard route filter?",
+      "category": "change_impact",
+      "reference_answer": "Review Router filter registration, rule parsing, conversion during matching and URL generation; update routing tests for valid/invalid values and reverse URL building as applicable. This is an impact hypothesis, not a confirmed patch.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Router"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "add_filter"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "add"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "match"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "build"}
+      ]
+    },
+    {
+      "id": "bottle-32",
+      "question": "What would need to change to introduce an additional request lifecycle hook?",
+      "category": "change_impact",
+      "reference_answer": "Inspect the Bottle hook registry, hook triggering in request dispatch and plugin integration; define lifecycle and error semantics and add tests for invocation order and exception handling.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "add_hook"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "trigger_hook"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "_handle"}
+      ]
+    },
+    {
+      "id": "bottle-33",
+      "question": "What code paths and tests would be affected by changing how route plugins are ordered?",
+      "category": "change_impact",
+      "reference_answer": "Inspect Route plugin preparation, application-level plugin installation, route apply/skip lists and reset behavior. Test stacking order, plugin exceptions, skip matching and cache invalidation.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Route"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "prepare"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "install"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "reset"}
+      ]
+    },
+    {
+      "id": "bottle-34",
+      "question": "Which components are likely to be affected when changing signed-cookie verification behavior?",
+      "category": "change_impact",
+      "reference_answer": "Review request cookie retrieval, signature decoding, response cookie generation and signing utilities; verify compatibility, tampering rejection and existing cookie tests.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseRequest"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseResponse"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "get_cookie"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "set_cookie"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "cookie_decode"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "cookie_encode"}
+      ]
+    },
+    {
+      "id": "bottle-35",
+      "question": "What is the likely impact of modifying application mounting behavior?",
+      "category": "change_impact",
+      "reference_answer": "Inspect Bottle.mount and helpers for Bottle versus generic WSGI apps, prefix handling, route lookup and URL generation, along with mount and sub-app request tests.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "mount"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "_mount_app"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "_mount_wsgi"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "get_url"}
+      ]
+    },
+    {
+      "id": "bottle-36",
+      "question": "Which five production functions have the highest cyclomatic complexity in the pinned Bottle revision?",
+      "category": "code_quality",
+      "reference_answer": null,
+      "annotation_status": "draft",
+      "notes": "Requires Lizard measurement on the pinned commit; no reference answer until measured.",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"}
+      ]
+    },
+    {
+      "id": "bottle-37",
+      "question": "Which five classes or functions have the highest outgoing structural dependency count in the extracted graph?",
+      "category": "code_quality",
+      "reference_answer": null,
+      "annotation_status": "draft",
+      "notes": "Requires graph measurement on the pinned commit; no reference answer until measured.",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"}
+      ]
+    },
+    {
+      "id": "bottle-38",
+      "question": "Which five production methods have the greatest non-comment line count according to the configured analyzer?",
+      "category": "code_quality",
+      "reference_answer": null,
+      "annotation_status": "draft",
+      "notes": "Requires Lizard measurement on the pinned commit; no reference answer until measured.",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"}
+      ]
+    },
+    {
+      "id": "bottle-39",
+      "question": "Which parts of the routing and request-processing pipeline combine high complexity with high historical change frequency?",
+      "category": "code_quality",
+      "reference_answer": null,
+      "annotation_status": "draft",
+      "notes": "Requires Lizard measurement and commit history; history is not ingested from zipball imports, so this question tests how the system reports missing evidence.",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Router"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseRequest"}
+      ]
+    },
+    {
+      "id": "bottle-40",
+      "question": "How should refactoring candidates be prioritized using measured complexity, function length and structural dependencies?",
+      "category": "code_quality",
+      "reference_answer": "Rank candidate symbols using actual measurements with an explicit weighting or Pareto approach; inspect responsibility, test coverage and user-visible behavior before proposing changes. The exact ranking cannot be inferred without analysis.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "bottle.py"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Router"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "Bottle"},
+        {"kind": "symbol", "path": "bottle.py", "symbol": "BaseRequest"}
+      ]
+    }
+  ]
+}

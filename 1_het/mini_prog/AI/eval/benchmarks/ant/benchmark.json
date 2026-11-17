@@ -1,0 +1,701 @@
+{
+  "name": "apache-ant-40q-benchmark",
+  "version": "0.4-draft-references",
+  "description": "Apache Ant 40-question eight-category CodeMind benchmark. Pinned to master at dbb01a2 (2026-10-07, 1.10.x line after rel/1.10.15), the snapshot indexed in CodeMind; gold evidence re-validated on this commit. Reference answers and gold evidence are draft annotations; review them against the pinned commit and run validate-gold before scientific use. Questions ant-36..ant-39 need measured metrics and have no reference answer, so they are scored on retrieval and grounding only. Symbol-level gold evidence (method names inside the already listed gold files) was added for ant-01..ant-35 after the experiments ran, so that symbol-level retrieval metrics are defined; code_quality questions ant-36..ant-40 have no symbol gold because their answers depend on measured metrics.",
+  "repository": {
+    "id": "apache-ant",
+    "url": "https://github.com/apache/ant",
+    "reference": "master@dbb01a2",
+    "commit_sha": "dbb01a2d528568b1d7ba0c2d84e533577f7f0876",
+    "language": "java"
+  },
+  "category_definitions": {
+    "comprehension": "Local functionality and core semantics",
+    "call_flow": "Execution and method-call paths",
+    "dependency": "Structural or runtime dependencies",
+    "design_pattern": "Architectural patterns and extension mechanisms",
+    "multi_source": "Cross-file synthesis and evidence",
+    "architecture": "Repository subsystem boundaries and architecture",
+    "change_impact": "Likely affected components under proposed changes",
+    "code_quality": "Measured complexity, coupling and refactoring evidence"
+  },
+  "questions": [
+    {
+      "id": "ant-01",
+      "question": "How does the Project class coordinate an Ant build?",
+      "category": "comprehension",
+      "reference_answer": "Project stores the build context, targets, properties, references, and listeners, and delegates execution of requested targets to the configured executor. Targets group tasks; the Project provides shared configuration and logging.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Target.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Executor.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "executeTargets"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "getExecutor"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Executor.java", "symbol": "executeTargets"}
+      ]
+    },
+    {
+      "id": "ant-02",
+      "question": "What does a Target contain and how is it executed?",
+      "category": "comprehension",
+      "reference_answer": "A Target represents a named collection of tasks with dependencies and conditional execution controls. Once eligible for execution, its tasks are executed in sequence, with build exceptions propagated to the build machinery.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Target.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Task.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Target.java", "symbol": "execute"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Target.java", "symbol": "performTasks"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Target.java", "symbol": "getDependencies"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Task.java", "symbol": "perform"}
+      ]
+    },
+    {
+      "id": "ant-03",
+      "question": "What is the role of Task and its execute method?",
+      "category": "comprehension",
+      "reference_answer": "Task is the base abstraction for executable units in an Ant target. After configuration, execution invokes the task-specific execute method; tasks interact with Project for logging, properties, and references.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Task.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/UnknownElement.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Task.java", "symbol": "execute"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Task.java", "symbol": "perform"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Task.java", "symbol": "maybeConfigure"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/UnknownElement.java", "symbol": "execute"}
+      ]
+    },
+    {
+      "id": "ant-04",
+      "question": "How are Ant project properties looked up and expanded in task attributes?",
+      "category": "comprehension",
+      "reference_answer": "Project exposes property APIs, while PropertyHelper is responsible for property evaluation and expansion. Build-file configuration can contain ${name} references which are resolved when corresponding attributes and text are configured.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/PropertyHelper.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/RuntimeConfigurable.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/PropertyHelper.java", "symbol": "replaceProperties"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/PropertyHelper.java", "symbol": "parseProperties"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "replaceProperties"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/RuntimeConfigurable.java", "symbol": "maybeConfigure"}
+      ]
+    },
+    {
+      "id": "ant-05",
+      "question": "How does the Javac task decide which sources require compilation?",
+      "category": "comprehension",
+      "reference_answer": "Javac scans configured source trees using fileset-like include/exclude rules and selects candidates with stale or missing corresponding class files; it delegates the actual compilation to the configured compiler adapter. Its standard freshness check is not a full Java dependency analysis.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/MatchingTask.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/types/Path.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java", "symbol": "execute"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java", "symbol": "scanDir"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java", "symbol": "compile"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/MatchingTask.java", "symbol": "getDirectoryScanner"}
+      ]
+    },
+    {
+      "id": "ant-06",
+      "question": "Trace the command-line execution path from Main to processing the requested targets.",
+      "category": "call_flow",
+      "reference_answer": "Main parses command-line options, identifies the build file, prepares/configures the Project and associated helpers, registers listeners, and launches requested targets through the project execution mechanism. Exact overloads and initialization order should be verified against the pinned commit.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Main.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/ProjectHelper.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/helper/DefaultExecutor.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Main.java", "symbol": "startAnt"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Main.java", "symbol": "processArgs"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Main.java", "symbol": "runBuild"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ProjectHelper.java", "symbol": "configureProject"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "executeTargets"}
+      ]
+    },
+    {
+      "id": "ant-07",
+      "question": "How are targets ordered and executed when one target depends on another?",
+      "category": "call_flow",
+      "reference_answer": "Target dependencies define a directed precedence graph. Project determines a dependency-respecting order, including via topological sorting, and the executor runs applicable targets in that order. A target is not repeated just because multiple dependents mention it.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Target.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/helper/DefaultExecutor.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "topoSort"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "executeTarget"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "executeSortedTargets"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Target.java", "symbol": "getDependencies"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/helper/DefaultExecutor.java", "symbol": "executeTargets"}
+      ]
+    },
+    {
+      "id": "ant-08",
+      "question": "Trace execution of an UnknownElement from its parsed XML representation to the actual task.",
+      "category": "call_flow",
+      "reference_answer": "During build-file parsing, an UnknownElement retains the declaration and RuntimeConfigurable information. At execution/configuration time it resolves the task/type definition, creates and configures the real object, and delegates execution to it.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/UnknownElement.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/RuntimeConfigurable.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/ComponentHelper.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Task.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/UnknownElement.java", "symbol": "maybeConfigure"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/UnknownElement.java", "symbol": "makeObject"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/UnknownElement.java", "symbol": "execute"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ComponentHelper.java", "symbol": "createComponent"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/RuntimeConfigurable.java", "symbol": "maybeConfigure"}
+      ]
+    },
+    {
+      "id": "ant-09",
+      "question": "How does a FileSet lead to the list of included files through DirectoryScanner?",
+      "category": "call_flow",
+      "reference_answer": "FileSet combines a base directory and inclusion/exclusion patterns. When asked for a DirectoryScanner, it configures scanning rules and obtains included files; tasks consume those results to operate on matching resources.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/types/FileSet.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/types/PatternSet.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/types/FileSet.java", "symbol": "getDirectoryScanner"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java", "symbol": "scan"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java", "symbol": "getIncludedFiles"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java", "symbol": "isIncluded"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/types/PatternSet.java", "symbol": "getIncludePatterns"}
+      ]
+    },
+    {
+      "id": "ant-10",
+      "question": "How does Javac select a compiler adapter and execute compilation?",
+      "category": "call_flow",
+      "reference_answer": "Javac prepares the compile file list and effective compiler settings, then obtains an appropriate CompilerAdapter through its adapter factory/mechanism and calls that adapter to perform compilation. Specific branch conditions depend on compiler attributes and JDK capabilities.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapterFactory.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapter.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java", "symbol": "compile"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapterFactory.java", "symbol": "getCompiler"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapter.java", "symbol": "setJavac"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapter.java", "symbol": "execute"}
+      ]
+    },
+    {
+      "id": "ant-11",
+      "question": "What are the dependencies between Project, Target and Task, and what is their direction?",
+      "category": "dependency",
+      "reference_answer": "A Project owns or registers targets; a Target contains tasks and names dependencies on other targets; each Task can access its owning Project context. Target-to-target edges encode order constraints, distinct from Java class inheritance.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Target.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Task.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "addTarget"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Target.java", "symbol": "addTask"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Target.java", "symbol": "addDependency"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Task.java", "symbol": "getOwningTarget"}
+      ]
+    },
+    {
+      "id": "ant-12",
+      "question": "How do ProjectHelper and ProjectHelper2 cooperate with project configuration?",
+      "category": "dependency",
+      "reference_answer": "ProjectHelper defines the configuration/parsing abstraction and helper selection, while ProjectHelper2 supplies an XML build-file parsing implementation that constructs targets and configuration elements for the Project.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/ProjectHelper.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/helper/ProjectHelper2.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/UnknownElement.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ProjectHelper.java", "symbol": "configureProject"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ProjectHelper.java", "symbol": "getProjectHelper"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/helper/ProjectHelper2.java", "symbol": "parse"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/helper/ProjectHelper2.java", "symbol": "parseUnknownElement"}
+      ]
+    },
+    {
+      "id": "ant-13",
+      "question": "How are ComponentHelper, task definitions, and UnknownElement related?",
+      "category": "dependency",
+      "reference_answer": "ComponentHelper maintains the project-specific knowledge of component/task definitions. An UnknownElement resolves its declared name against those definitions to instantiate the appropriate runtime task or datatype.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/ComponentHelper.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/UnknownElement.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/AntTypeDefinition.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ComponentHelper.java", "symbol": "createComponent"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ComponentHelper.java", "symbol": "getDefinition"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ComponentHelper.java", "symbol": "addTaskDefinition"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/UnknownElement.java", "symbol": "makeObject"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/AntTypeDefinition.java", "symbol": "create"}
+      ]
+    },
+    {
+      "id": "ant-14",
+      "question": "How do FileSet, PatternSet, DirectoryScanner and selectors interact?",
+      "category": "dependency",
+      "reference_answer": "FileSet describes the base directory, include/exclude patterns, and optional selectors. PatternSet supplies matching patterns, while DirectoryScanner applies the rules to traverse and identify matching paths.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/types/FileSet.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/types/PatternSet.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/types/selectors/FileSelector.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/types/FileSet.java", "symbol": "getDirectoryScanner"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java", "symbol": "setSelectors"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java", "symbol": "isSelected"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/types/selectors/FileSelector.java", "symbol": "isSelected"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/types/PatternSet.java", "symbol": "getIncludePatterns"}
+      ]
+    },
+    {
+      "id": "ant-15",
+      "question": "How are Executor implementations used by Project when running targets?",
+      "category": "dependency",
+      "reference_answer": "Project delegates requested target execution to an Executor abstraction. Concrete implementations, such as DefaultExecutor, implement policies for invoking the target sequence and handling project execution requests.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Executor.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/helper/DefaultExecutor.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "setExecutor"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "executeTargets"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Executor.java", "symbol": "executeTargets"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/helper/DefaultExecutor.java", "symbol": "executeTargets"}
+      ]
+    },
+    {
+      "id": "ant-16",
+      "question": "Which design pattern is reflected in Task and its concrete build tasks?",
+      "category": "design_pattern",
+      "reference_answer": "Task is a common execution abstraction with concrete subclasses implementing task-specific behavior, resembling the Command pattern. The analogy is structural: XML-configured tasks carry actions and execute them under a shared Project context.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Task.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Target.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Task.java", "symbol": "execute"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Task.java", "symbol": "perform"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java", "symbol": "execute"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Target.java", "symbol": "performTasks"}
+      ]
+    },
+    {
+      "id": "ant-17",
+      "question": "How does Ant use adapter or strategy objects to support multiple Java compilers?",
+      "category": "design_pattern",
+      "reference_answer": "Javac separates compilation policy from compiler-specific invocations using CompilerAdapter implementations, selected according to configuration. This is an Adapter/Strategy-like extensibility mechanism.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapter.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapterFactory.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java", "symbol": "compile"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapter.java", "symbol": "setJavac"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapter.java", "symbol": "execute"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapterFactory.java", "symbol": "getCompiler"}
+      ]
+    },
+    {
+      "id": "ant-18",
+      "question": "How does UnknownElement support deferred component creation and configuration?",
+      "category": "design_pattern",
+      "reference_answer": "UnknownElement represents a not-yet-instantiated build-file component. It defers resolving its implementation and applying nested configuration until the runtime needs the element; this is a lazy/deferred construction mechanism, not a hard-coded built-in task mapping.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/UnknownElement.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/RuntimeConfigurable.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/ComponentHelper.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/UnknownElement.java", "symbol": "maybeConfigure"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/UnknownElement.java", "symbol": "makeObject"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/UnknownElement.java", "symbol": "getRealThing"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/RuntimeConfigurable.java", "symbol": "maybeConfigure"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ComponentHelper.java", "symbol": "createComponent"}
+      ]
+    },
+    {
+      "id": "ant-19",
+      "question": "How do BuildListener notifications decouple the build engine from logging and UI reporting?",
+      "category": "design_pattern",
+      "reference_answer": "The Project publishes lifecycle and message events to registered BuildListener implementations; logging/reporting listeners observe those events without being responsible for executing the build tasks themselves. This follows an Observer-style separation.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/BuildListener.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/BuildEvent.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/DefaultLogger.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "addBuildListener"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "fireTaskStarted"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "fireMessageLogged"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/BuildListener.java", "symbol": "taskStarted"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/BuildListener.java", "symbol": "messageLogged"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/DefaultLogger.java", "symbol": "messageLogged"}
+      ]
+    },
+    {
+      "id": "ant-20",
+      "question": "How do Resource and ResourceCollection abstractions generalize FileSet-style operations?",
+      "category": "design_pattern",
+      "reference_answer": "Resource and ResourceCollection let tasks operate on collections of resources using common iteration/metadata interfaces instead of depending only on raw filesystem paths. FileSet is one concrete resource collection.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/types/Resource.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/types/ResourceCollection.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/types/FileSet.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/types/Resource.java", "symbol": "getInputStream"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/types/ResourceCollection.java", "symbol": "isFilesystemOnly"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/types/FileSet.java", "symbol": "iterator"}
+      ]
+    },
+    {
+      "id": "ant-21",
+      "question": "How are build targets parsed from XML and ultimately executed?",
+      "category": "multi_source",
+      "reference_answer": "The project helper parses XML declarations into target and nested element structures, associates them with the Project, and leaves runtime task configuration to component/unknown-element machinery. The Project executor later schedules targets and invokes their tasks.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Main.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/ProjectHelper.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/helper/ProjectHelper2.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Target.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/UnknownElement.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ProjectHelper.java", "symbol": "configureProject"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/helper/ProjectHelper2.java", "symbol": "parse"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/helper/ProjectHelper2.java", "symbol": "parseUnknownElement"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "executeTargets"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Target.java", "symbol": "performTasks"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/UnknownElement.java", "symbol": "maybeConfigure"}
+      ]
+    },
+    {
+      "id": "ant-22",
+      "question": "How are build failures raised, propagated and logged?",
+      "category": "multi_source",
+      "reference_answer": "A failing task can throw a BuildException. The failure propagates through target/project execution, while project lifecycle events and registered listeners/loggers report failures and related messages; the CLI selects an exit outcome.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/BuildException.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Task.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Target.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Main.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/DefaultLogger.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Task.java", "symbol": "perform"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Target.java", "symbol": "performTasks"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "executeTarget"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "fireBuildFinished"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Main.java", "symbol": "runBuild"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/DefaultLogger.java", "symbol": "buildFinished"}
+      ]
+    },
+    {
+      "id": "ant-23",
+      "question": "How do includes, excludes and default excludes affect Copy task file selection?",
+      "category": "multi_source",
+      "reference_answer": "Copy accepts filesets or other resource collections; FileSet uses patterns and DirectoryScanner selection, including default excludes unless disabled. The resulting resources are mapped and copied according to Copy configuration.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/Copy.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/types/FileSet.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/types/PatternSet.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/Copy.java", "symbol": "execute"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/Copy.java", "symbol": "scan"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java", "symbol": "addDefaultExcludes"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java", "symbol": "isExcluded"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/types/PatternSet.java", "symbol": "getExcludePatterns"}
+      ]
+    },
+    {
+      "id": "ant-24",
+      "question": "How is a custom task name declared in a build file and resolved at execution time?",
+      "category": "multi_source",
+      "reference_answer": "A build file uses taskdef or related definition mechanisms to register a name and implementation/classpath with ComponentHelper. The parsed UnknownElement is later resolved and configured to instantiate that implementation.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/Taskdef.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/Definer.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/ComponentHelper.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/UnknownElement.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/Definer.java", "symbol": "execute"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/Definer.java", "symbol": "addDefinition"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ComponentHelper.java", "symbol": "addDataTypeDefinition"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ComponentHelper.java", "symbol": "createComponent"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/UnknownElement.java", "symbol": "makeObject"}
+      ]
+    },
+    {
+      "id": "ant-25",
+      "question": "How does the Exec task execute an external process and communicate its exit status?",
+      "category": "multi_source",
+      "reference_answer": "ExecTask gathers the executable, arguments, environment and redirection settings and launches the command using Ant process utilities. It can record result properties or throw BuildException based on exit status and failonerror settings.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/ExecTask.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/Execute.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/ExecuteWatchdog.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/types/Commandline.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/ExecTask.java", "symbol": "execute"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/ExecTask.java", "symbol": "runExec"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/ExecTask.java", "symbol": "runExecute"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/ExecTask.java", "symbol": "maybeSetResultPropertyValue"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/Execute.java", "symbol": "execute"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/Execute.java", "symbol": "isFailure"}
+      ]
+    },
+    {
+      "id": "ant-26",
+      "question": "Explain the main architecture layers of Apache Ant from build.xml to executing Java tasks.",
+      "category": "architecture",
+      "reference_answer": "Ant includes CLI/bootstrap handling, build-file parsing and configuration, project/target scheduling, task/type registration, execution of concrete tasks, and optional logging/listener infrastructure. XML elements are resolved into configured Java objects.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Main.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/ProjectHelper.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/helper/ProjectHelper2.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Target.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Task.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/ComponentHelper.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Main.java", "symbol": "runBuild"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ProjectHelper.java", "symbol": "configureProject"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "executeTargets"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Target.java", "symbol": "performTasks"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Task.java", "symbol": "perform"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ComponentHelper.java", "symbol": "createComponent"}
+      ]
+    },
+    {
+      "id": "ant-27",
+      "question": "Why are ProjectHelper, ComponentHelper, and Project separate responsibilities?",
+      "category": "architecture",
+      "reference_answer": "ProjectHelper handles parsing/project configuration, ComponentHelper manages dynamic component definitions and instantiation, and Project represents build state and execution coordination. The separation supports pluggable parsers and tasks.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/ProjectHelper.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/ComponentHelper.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ProjectHelper.java", "symbol": "configureProject"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ComponentHelper.java", "symbol": "getComponentHelper"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ComponentHelper.java", "symbol": "createComponent"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "executeTargets"}
+      ]
+    },
+    {
+      "id": "ant-28",
+      "question": "How does Ant separate core APIs from optional tasks and integrations?",
+      "category": "architecture",
+      "reference_answer": "The core defines general Project/Task/Resource abstractions, while specialized and optional tasks live in taskdefs packages and may require external libraries. Component definitions allow capabilities to be registered without embedding their behavior into the core scheduler.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Task.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/ComponentHelper.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/optional/junit/JUnitTask.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ComponentHelper.java", "symbol": "initDefaultDefinitions"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/ComponentHelper.java", "symbol": "createComponent"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Task.java", "symbol": "execute"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java", "symbol": "execute"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/optional/junit/JUnitTask.java", "symbol": "execute"}
+      ]
+    },
+    {
+      "id": "ant-29",
+      "question": "How does Ant model build lifecycle events and logging?",
+      "category": "architecture",
+      "reference_answer": "BuildEvent objects describe lifecycle/message events, and BuildListener implementations receive callbacks when Project emits those events. Logger implementations specialize event reporting while execution logic remains with Project, targets and tasks.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/BuildEvent.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/BuildListener.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/DefaultLogger.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "fireTargetStarted"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "fireMessageLogged"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/BuildListener.java", "symbol": "targetStarted"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/BuildListener.java", "symbol": "messageLogged"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/DefaultLogger.java", "symbol": "targetStarted"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/DefaultLogger.java", "symbol": "messageLogged"}
+      ]
+    },
+    {
+      "id": "ant-30",
+      "question": "What are the architectural differences between target dependencies and Java class dependencies?",
+      "category": "architecture",
+      "reference_answer": "Target dependencies are runtime scheduling constraints expressed in build files, whereas Java class dependencies are source-level type usage/inheritance relationships. They should be represented as separate relation kinds in a knowledge graph.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Target.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Task.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Target.java", "symbol": "getDependencies"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Target.java", "symbol": "dependsOn"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "topoSort"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Task.java", "symbol": "getOwningTarget"}
+      ]
+    },
+    {
+      "id": "ant-31",
+      "question": "Which components are likely to require changes to modify target dependency ordering?",
+      "category": "change_impact",
+      "reference_answer": "Likely inspection points include Target dependency representation, Project topological sorting and execution, Executor implementations, and tests for cyclic dependencies, shared prerequisites, and error handling. The exact files to modify depend on the requested semantics.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Target.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Executor.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/helper/DefaultExecutor.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Target.java", "symbol": "setDepends"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Target.java", "symbol": "getDependencies"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "topoSort"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "tsort"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Executor.java", "symbol": "executeTargets"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/helper/DefaultExecutor.java", "symbol": "executeTargets"}
+      ]
+    },
+    {
+      "id": "ant-32",
+      "question": "What areas would be affected by adding a new lifecycle event for the start of each task?",
+      "category": "change_impact",
+      "reference_answer": "Task lifecycle events already exist; extending their payload or listener contract would require examining BuildEvent, BuildListener, Project event dispatch, logger/listener implementations and compatibility tests. A duplicate task-start event may be unnecessary.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/BuildEvent.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/BuildListener.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/DefaultLogger.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "fireTaskStarted"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/BuildListener.java", "symbol": "taskStarted"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/BuildEvent.java", "symbol": "getTask"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/DefaultLogger.java", "symbol": "taskStarted"}
+      ]
+    },
+    {
+      "id": "ant-33",
+      "question": "What needs to change to add a new file inclusion rule for FileSet scanning?",
+      "category": "change_impact",
+      "reference_answer": "Inspect FileSet and PatternSet configuration, DirectoryScanner pattern matching, selector handling, XML attribute configuration, and tests for path normalization, default excludes and nested selectors. Prefer adding a compatible extension rather than changing unrelated tasks.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/types/FileSet.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/types/PatternSet.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/types/selectors/FileSelector.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/types/PatternSet.java", "symbol": "setIncludes"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/types/PatternSet.java", "symbol": "getIncludePatterns"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java", "symbol": "scan"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java", "symbol": "isIncluded"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/types/selectors/FileSelector.java", "symbol": "isSelected"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/types/FileSet.java", "symbol": "getDirectoryScanner"}
+      ]
+    },
+    {
+      "id": "ant-34",
+      "question": "What components and tests are impacted by introducing a new Javac compiler adapter?",
+      "category": "change_impact",
+      "reference_answer": "Implement a CompilerAdapter and integrate its selection with CompilerAdapterFactory/Javac as appropriate; review compiler-specific configuration, classpaths, Java-version handling, fork behavior, and compilation integration tests.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapter.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapterFactory.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapter.java", "symbol": "setJavac"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapter.java", "symbol": "execute"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapterFactory.java", "symbol": "getCompiler"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/compilers/CompilerAdapterFactory.java", "symbol": "resolveClassName"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java", "symbol": "compile"}
+      ]
+    },
+    {
+      "id": "ant-35",
+      "question": "What would be affected by changing property replacement semantics in build files?",
+      "category": "change_impact",
+      "reference_answer": "PropertyHelper expansion and Project property APIs are primary touchpoints; parsing/configuration paths such as RuntimeConfigurable and task attribute setters would be affected indirectly. Regression tests should cover nested properties, escaping and immutable property behavior.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/PropertyHelper.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/RuntimeConfigurable.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/helper/ProjectHelper2.java"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/PropertyHelper.java", "symbol": "replaceProperties"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/PropertyHelper.java", "symbol": "parseProperties"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/PropertyHelper.java", "symbol": "setNewProperty"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/Project.java", "symbol": "replaceProperties"},
+        {"kind": "symbol", "path": "src/main/org/apache/tools/ant/RuntimeConfigurable.java", "symbol": "maybeConfigure"}
+      ]
+    },
+    {
+      "id": "ant-36",
+      "question": "Which five production methods have the highest cyclomatic complexity according to the chosen Lizard configuration?",
+      "category": "code_quality",
+      "reference_answer": null,
+      "annotation_status": "draft",
+      "notes": "Requires Lizard measurement on the pinned commit; no reference answer until measured.",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Target.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/Copy.java"}
+      ]
+    },
+    {
+      "id": "ant-37",
+      "question": "Which five production classes have the highest outgoing class-dependency count in the parsed source graph?",
+      "category": "code_quality",
+      "reference_answer": null,
+      "annotation_status": "draft",
+      "notes": "Requires graph measurement on the pinned commit; no reference answer until measured.",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/ComponentHelper.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/Copy.java"}
+      ]
+    },
+    {
+      "id": "ant-38",
+      "question": "Which methods in DirectoryScanner exceed the agreed complexity threshold, and where are their source lines?",
+      "category": "code_quality",
+      "reference_answer": null,
+      "annotation_status": "draft",
+      "notes": "Requires Lizard measurement on the pinned commit; no reference answer until measured.",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java"}
+      ]
+    },
+    {
+      "id": "ant-39",
+      "question": "Where do high cyclomatic complexity and high fan-out overlap in the build-execution subsystem?",
+      "category": "code_quality",
+      "reference_answer": null,
+      "annotation_status": "draft",
+      "notes": "Requires Lizard and graph measurement on the pinned commit; no reference answer until measured.",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Target.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/ComponentHelper.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/UnknownElement.java"}
+      ]
+    },
+    {
+      "id": "ant-40",
+      "question": "How would you prioritize refactoring candidates combining measured complexity, method length, and incoming dependencies?",
+      "category": "code_quality",
+      "reference_answer": "Use the actual measured complexity, method length, and dependency counts to build an explicit, documented ranking; inspect the highest-ranked symbols for test coverage, responsibility and behavior before proposing refactorings. Numeric rankings and concrete winners cannot be derived without running the tools.",
+      "annotation_status": "draft",
+      "gold_evidence": [
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Project.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/Target.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/DirectoryScanner.java"},
+        {"kind": "file", "path": "src/main/org/apache/tools/ant/taskdefs/Javac.java"}
+      ]
+    }
+  ]
+}

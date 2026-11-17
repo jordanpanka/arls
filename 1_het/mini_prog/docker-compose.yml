@@ -72,13 +72,15 @@ services:
       NEO4J_PASSWORD: "${NEO4J_PASSWORD:-password}"
       BACKEND_URL: "http://backend:8080"
       INTERNAL_API_KEY: "${INTERNAL_API_KEY:-local-dev-internal-key-change-me}"
-      CHAT_DEFAULT_MODE: "${CHAT_DEFAULT_MODE:-routed_rag}"
+      CHAT_DEFAULT_MODE: "${CHAT_DEFAULT_MODE:-adaptive_rag}"
       ROUTER_ESCALATION: "${ROUTER_ESCALATION:-true}"
       AGENT_MAX_ITERATIONS: "${AGENT_MAX_ITERATIONS:-4}"
       AGENT_MAX_TOOL_CALLS: "${AGENT_MAX_TOOL_CALLS:-12}"
       AGENT_TOKEN_BUDGET: "${AGENT_TOKEN_BUDGET:-60000}"
       AGENT_TIMEOUT_S: "${AGENT_TIMEOUT_S:-180}"
       AGENT_TRACE_ENABLED: "${AGENT_TRACE_ENABLED:-true}"
+    volumes:
+      - ./AI/eval/results:/app/eval/results
     extra_hosts:
       # Docker Desktop provides this automatically; this line makes Linux work too.
       - "host.docker.internal:host-gateway"

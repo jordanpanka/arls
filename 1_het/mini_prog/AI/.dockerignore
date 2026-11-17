@@ -5,6 +5,9 @@ venv/
 eval/ragas_env/
 **/site-packages/
 
+# Evaluation results - mounted as a volume, not baked into the image
+eval/results/
+
 # Python caches
 __pycache__/
 **/__pycache__/
