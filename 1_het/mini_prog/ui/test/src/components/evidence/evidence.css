@@ -11,6 +11,93 @@
   margin-left: 3px;
 }
 
+.answer-markdown > :first-child {
+  margin-top: 0;
+}
+
+.answer-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.answer-markdown p,
+.answer-markdown ul,
+.answer-markdown ol,
+.answer-markdown pre,
+.answer-markdown blockquote,
+.answer-markdown table {
+  margin: 0 0 10px;
+}
+
+.answer-markdown ul,
+.answer-markdown ol {
+  padding-left: 24px;
+}
+
+.answer-markdown h1,
+.answer-markdown h2,
+.answer-markdown h3,
+.answer-markdown h4 {
+  margin: 14px 0 6px;
+  color: #03045e;
+  line-height: 1.3;
+}
+
+.answer-markdown h1 {
+  font-size: 20px;
+}
+
+.answer-markdown h2 {
+  font-size: 18px;
+}
+
+.answer-markdown h3,
+.answer-markdown h4 {
+  font-size: 16px;
+}
+
+.answer-markdown code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: #eef4fb;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.answer-markdown pre {
+  padding: 10px;
+  border-radius: 6px;
+  background: #eef4fb;
+  overflow-x: auto;
+}
+
+.answer-markdown pre code {
+  padding: 0;
+  background: none;
+}
+
+.answer-markdown blockquote {
+  padding-left: 10px;
+  border-left: 3px solid #88B8F9;
+  color: #4b5563;
+}
+
+.answer-markdown table {
+  display: block;
+  border-collapse: collapse;
+  overflow-x: auto;
+}
+
+.answer-markdown th,
+.answer-markdown td {
+  padding: 4px 8px;
+  border: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.answer-markdown th {
+  background: #eef4fb;
+}
+
 .evidence-cite {
   display: inline-block;
   margin: 0 2px;

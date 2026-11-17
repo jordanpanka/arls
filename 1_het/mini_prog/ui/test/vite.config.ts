@@ -18,7 +18,7 @@ export default defineConfig({
     setupFiles: "./src/test/setup.ts",
     server: {
       deps: {
-        inline: [/@mui/, /@emotion/, /@monaco-editor/]
+        inline: [/@mui/, /@emotion/, /@monaco-editor/, /react-markdown/]
       }
     }
     }

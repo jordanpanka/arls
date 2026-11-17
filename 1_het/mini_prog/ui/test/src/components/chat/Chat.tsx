@@ -1,11 +1,12 @@
 import SendIcon from "@mui/icons-material/Send";
-import { Box, IconButton, Paper, TextField, Typography } from "@mui/material";
-import { useEffect, useState } from "preact/hooks";
+import { Box, CircularProgress, IconButton, Paper, TextField, Typography } from "@mui/material";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { NewConversation } from "./NewConversation";
 import { AnswerText, EvidenceList } from "../evidence/EvidenceList";
 import { sanitizeEvidence, sanitizeExecution, sanitizePatternAnalysis, type Evidence, type ExecutionInfo, type PatternAnalysisInfo } from "../evidence/types";
 import { ExecutionSummary } from "./ExecutionSummary";
 import { PatternAnalysisPanel } from "./PatternAnalysisPanel";
+import { ThinkingIndicator } from "./ThinkingIndicator";
 type Message = {
     id: number,
     role: string,
@@ -35,6 +36,9 @@ export function ChatWindow(prop: cProps) {
     const [answer, setAnswer] = useState("kezdő");
     const [executions, setExecutions] = useState<Record<string, ExecutionInfo>>({});
     const [patternAnalyses, setPatternAnalyses] = useState<Record<string, PatternAnalysisInfo>>({});
+    const [pendingConvIds, setPendingConvIds] = useState<number[]>([]);
+    const bottomRef = useRef<HTMLDivElement>(null);
+    const isPending = pendingConvIds.includes(prop.selectedCOnversationId);
 
     async function addConversation(title: string) {
         const projectId = prop.sellectedProjId;
@@ -65,28 +69,33 @@ export function ChatWindow(prop: cProps) {
         await loadMessages();
     }
     async function send() {
-        await addMessage(prompt, "User")
-        setAnswer("Thinking...");
-        const token = localStorage.getItem("token");
-        const r = await fetch("/api/chat/send", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + token
-            },
-            body: JSON.stringify({ prompt, investigationId:prop.selectedInvId, projectId: prop.sellectedProjId}),
-        });
-
-        const data = await r.json();
-        setAnswer(data.answer);
+        const convId = prop.selectedCOnversationId;
+        if (!prompt.trim() || pendingConvIds.includes(convId)) return;
         setPrompt("");
-        const execution = sanitizeExecution(data.execution, data.status);
-        if (execution) setExecutions(prev => ({ ...prev, [`${prop.selectedCOnversationId}:${data.answer}`]: execution }));
-        const patternAnalysis = sanitizePatternAnalysis(data.patternAnalysis);
-        if (patternAnalysis) setPatternAnalyses(prev => ({ ...prev, [`${prop.selectedCOnversationId}:${data.answer}`]: patternAnalysis }));
-        await addMessage(data.answer, "AI", sanitizeEvidence(data.evidence));
+        setPendingConvIds(prev => [...prev, convId]);
+        try {
+            await addMessage(prompt, "User")
+            setAnswer("Thinking...");
+            const token = localStorage.getItem("token");
+            const r = await fetch("/api/chat/send", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ prompt, investigationId:prop.selectedInvId, projectId: prop.sellectedProjId}),
+            });
 
-
+            const data = await r.json();
+            setAnswer(data.answer);
+            const execution = sanitizeExecution(data.execution, data.status);
+            if (execution) setExecutions(prev => ({ ...prev, [`${convId}:${data.answer}`]: execution }));
+            const patternAnalysis = sanitizePatternAnalysis(data.patternAnalysis);
+            if (patternAnalysis) setPatternAnalyses(prev => ({ ...prev, [`${convId}:${data.answer}`]: patternAnalysis }));
+            await addMessage(data.answer, "AI", sanitizeEvidence(data.evidence));
+        } finally {
+            setPendingConvIds(prev => prev.filter(id => id !== convId));
+        }
     }
     async function loadMessages() {
         const token = localStorage.getItem("token");
@@ -106,6 +115,7 @@ export function ChatWindow(prop: cProps) {
         }));
     }
     useEffect(() => { loadMessages(); }, [prop.selectedCOnversationId])
+    useEffect(() => { bottomRef.current?.scrollIntoView?.({ behavior: "smooth", block: "end" }); }, [isPending, messagesByConvId[prop.selectedCOnversationId]?.length])
     return (<>
         {
             prop.selectedCOnversationId === -1 ? (
@@ -206,23 +216,25 @@ export function ChatWindow(prop: cProps) {
                                             //backgroundColor: m.role === "User" ? "white" : "#0077B6",
                                             margin: "1px",
                                             mt: "5px",
-                                            mb: "5px"
+                                            mb: "5px",
+                                            minWidth: 0
 
                                         }}>
-                                        {evidence.length > 0 ? (
+                                        {m.role === "User" ? (
+                                            <Typography sx={{ margin: "10px" }}>{m.content}</Typography>
+                                        ) : (
                                             <>
                                                 <AnswerText content={m.content} evidence={evidence} onOpen={openEvidence} />
                                                 <EvidenceList evidence={evidence} onOpen={openEvidence} />
                                             </>
-                                        ) : (
-                                            <Typography sx={{ margin: "10px" }}>{m.content}</Typography>
                                         )}
                                         {patternAnalysis && <PatternAnalysisPanel analysis={patternAnalysis} onOpen={openEvidence} />}
                                         {execution && <ExecutionSummary execution={execution} />}
                                     </Paper>
                                 </Box>
                             })}
-
+                            {isPending && <ThinkingIndicator />}
+                            <div ref={bottomRef} />
                         </Box>
                     }
 
@@ -238,7 +250,7 @@ export function ChatWindow(prop: cProps) {
                                 borderRadius: "16px"
                             }
                         }} value={prompt} onChange={(e) => { setPrompt(e.currentTarget.value) }} placeholder="What do you want to know?"></TextField>
-                        <IconButton onClick={send}><SendIcon /></IconButton>
+                        <IconButton onClick={send} disabled={isPending} aria-label="Send">{isPending ? <CircularProgress size={22} /> : <SendIcon />}</IconButton>
                     </Box>
 
                 </Paper>)

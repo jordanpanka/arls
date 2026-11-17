@@ -36,6 +36,33 @@ describe("agent execution", () => {
     expect(screen.queryByRole("button", { name: "G9" })).toBeNull();
   });
 
+  it("renders the answer as markdown", () => {
+    const { container } = render(<AnswerText content={"**fontos**\n\n- első\n- második\n\n| a |\n| - |\n| b |"} evidence={[]} onOpen={vi.fn()} />);
+    expect(container.querySelector("strong")?.textContent).toBe("fontos");
+    expect(container.querySelectorAll("li")).toHaveLength(2);
+    expect(container.querySelector("td")?.textContent).toBe("b");
+    expect(container.textContent).not.toContain("**");
+  });
+
+  it.each([
+    ["bold list item", "- **lásd [GRAPH_2]**"],
+    ["inline code", "`[GRAPH_2]`"],
+    ["code block", "```\ncall [GRAPH_2]\n```"],
+    ["link text", "[[GRAPH_2]](https://example.com)"],
+  ])("keeps citations clickable in %s", (_, content) => {
+    const onOpen = vi.fn();
+    const { container } = render(<AnswerText content={content} evidence={[graph("GRAPH_2", "checkout")]} onOpen={onOpen} />);
+    fireEvent.click(screen.getByRole("button", { name: "G2" }));
+    expect(onOpen).toHaveBeenCalledWith("GRAPH_2");
+    expect(container.textContent).not.toContain("[GRAPH_2]");
+    expect(container.querySelector("a")).toBeNull();
+  });
+
+  it("does not render raw html from the answer", () => {
+    const { container } = render(<AnswerText content={"<img src=x onerror=alert(1)>"} evidence={[]} onOpen={vi.fn()} />);
+    expect(container.querySelector("img")).toBeNull();
+  });
+
   it("sanitizes the execution payload", () => {
     expect(sanitizeExecution(null)).toBeNull();
     expect(sanitizeExecution({ toolCalls: 2 })).toBeNull();
@@ -65,16 +92,16 @@ describe("agent execution", () => {
     expect(screen.queryByText(/^auto:/)).toBeNull();
   });
 
-  it("shows why the routed mode picked a workflow", () => {
-    expect(sanitizeExecution({ strategy: "adaptive_rag", route: { chosen: 1 } })?.route).toBeNull();
+  it("shows why the adaptive mode picked a workflow", () => {
+    expect(sanitizeExecution({ strategy: "selective_rag", route: { chosen: 1 } })?.route).toBeNull();
     const execution = sanitizeExecution({
-      strategy: "adaptive_rag",
+      strategy: "selective_rag",
       latencyMs: 2100,
-      route: { requested: "routed_rag", chosen: "adaptive_rag", reason: "simple_question", complexity: "simple" },
+      route: { requested: "adaptive_rag", chosen: "selective_rag", reason: "simple_question", complexity: "simple" },
     })!;
-    expect(execution.route).toEqual({ chosen: "adaptive_rag", reason: "simple_question" });
+    expect(execution.route).toEqual({ chosen: "selective_rag", reason: "simple_question" });
     render(<ExecutionSummary execution={execution} />);
-    expect(screen.getByText("adaptive rag")).toBeTruthy();
+    expect(screen.getByText("selective rag")).toBeTruthy();
     expect(screen.getByText("auto: simple question")).toBeTruthy();
   });
 });
