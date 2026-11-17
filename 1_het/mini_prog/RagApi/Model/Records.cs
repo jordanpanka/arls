@@ -16,3 +16,4 @@ public record ChatRequestPython(string prompt,int userId, int investigationId, i
 public enum FileLookupStatus { Found, ProjectNotFound, Forbidden, FileNotFound }
 public record ProjectFileLookup(FileLookupStatus Status, ef.DbFile? File = null, int OwnerId = 0, int InvestigationId = 0);
 public record RegisterData(string email, string password, string firstName, string lastName);
+public record ChangePasswordData(string currentPassword, string newPassword);

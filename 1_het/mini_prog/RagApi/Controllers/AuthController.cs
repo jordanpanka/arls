@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using ef;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 [ApiController]
 [Route("/api/auth")]
@@ -27,5 +28,16 @@ public class AuthController : ControllerBase
         var result=await authService.LoginAsync(data);
         if(!result.Ok) return BadRequest(result.Error);
         return Ok(result.Data);
+    }
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordData data)
+    {
+        var uidClaim = User.FindFirst("uid")?.Value;
+        if (uidClaim == null || !int.TryParse(uidClaim, out var userId)) return Unauthorized();
+
+        var result=await authService.ChangePasswordAsync(userId, data);
+        if(!result.Ok) return BadRequest(result.Error);
+        return Ok();
     }
 }

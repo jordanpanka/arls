@@ -52,7 +52,29 @@ public class AuthService
         var response=new{FirstName=user.FirstName,LastName=user.LastName, Token=token};
 
         return ServiceResult.Success(response);
-        
+
+    }
+    public async Task<ServiceResult> ChangePasswordAsync(int userId, ChangePasswordData data)
+    {
+        if (string.IsNullOrEmpty(data.currentPassword)) return ServiceResult.Fail("A jelenlegi jelszó megadása kötelező.");
+        if (string.IsNullOrWhiteSpace(data.newPassword) || data.newPassword.Length < 6 || !HasUpperAndLower(data.newPassword))
+            return ServiceResult.Fail("A jelszó nem felel meg a követelményeknek\n -tartalmaznia kell kis-és nagy betűt\n -legalább 6 karakter hosszú legyen\n");
+
+        var user = await db.Users.SingleOrDefaultAsync(x => x.ID == userId);
+        if (user == null)
+            return ServiceResult.Fail("A felhasználó nem található.");
+
+        if (!VerifyPassword(data.currentPassword, user.Passwordsalt, user.PasswordHash))
+            return ServiceResult.Fail("Hibás a jelenlegi jelszó");
+
+        if (data.currentPassword == data.newPassword)
+            return ServiceResult.Fail("Az új jelszó nem egyezhet meg a jelenlegivel.");
+
+        var (salt, hash) = HashPassword(data.newPassword);
+        user.Passwordsalt = salt;
+        user.PasswordHash = hash;
+        await db.SaveChangesAsync();
+        return ServiceResult.Success();
     }
     public (byte[] hash, byte[] salt) HashPassword(string pass)
     {

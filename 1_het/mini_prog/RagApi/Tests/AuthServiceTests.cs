@@ -134,4 +134,75 @@ public class AuthServiceTests
 
         Assert.False(result);
     }
+
+    private async Task<(CodeDbContext db, AuthService service, int userId)> CreateUserAsync(string password)
+    {
+        var db = CreateDb();
+        var service = new AuthService(db, null!);
+        await service.RegisterAsync(new RegisterData("test@test.com", password, "Teszt", "Elek"));
+        var user = await db.Users.SingleAsync();
+        return (db, service, user.ID);
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_ShouldUpdatePassword_WhenCurrentPasswordIsCorrect()
+    {
+        var (db, service, userId) = await CreateUserAsync("Password123");
+
+        var result = await service.ChangePasswordAsync(userId, new ChangePasswordData("Password123", "NewPassword456"));
+
+        Assert.True(result.Ok);
+
+        var user = await db.Users.SingleAsync();
+
+        Assert.True(service.VerifyPassword("NewPassword456", user.Passwordsalt, user.PasswordHash));
+        Assert.False(service.VerifyPassword("Password123", user.Passwordsalt, user.PasswordHash));
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_ShouldFail_WhenCurrentPasswordIsWrong()
+    {
+        var (db, service, userId) = await CreateUserAsync("Password123");
+
+        var result = await service.ChangePasswordAsync(userId, new ChangePasswordData("WrongPassword", "NewPassword456"));
+
+        Assert.False(result.Ok);
+        Assert.Equal("Hibás a jelenlegi jelszó", result.Error);
+
+        var user = await db.Users.SingleAsync();
+
+        Assert.True(service.VerifyPassword("Password123", user.Passwordsalt, user.PasswordHash));
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_ShouldFail_WhenNewPasswordIsTooWeak()
+    {
+        var (_, service, userId) = await CreateUserAsync("Password123");
+
+        var result = await service.ChangePasswordAsync(userId, new ChangePasswordData("Password123", "weak"));
+
+        Assert.False(result.Ok);
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_ShouldFail_WhenNewPasswordEqualsCurrent()
+    {
+        var (_, service, userId) = await CreateUserAsync("Password123");
+
+        var result = await service.ChangePasswordAsync(userId, new ChangePasswordData("Password123", "Password123"));
+
+        Assert.False(result.Ok);
+        Assert.Equal("Az új jelszó nem egyezhet meg a jelenlegivel.", result.Error);
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_ShouldFail_WhenUserDoesNotExist()
+    {
+        var db = CreateDb();
+        var service = new AuthService(db, null!);
+
+        var result = await service.ChangePasswordAsync(42, new ChangePasswordData("Password123", "NewPassword456"));
+
+        Assert.False(result.Ok);
+    }
 }
