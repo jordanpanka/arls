@@ -1,7 +1,14 @@
+import pytest
+
 from app.models.models import ChatRequest
 from app.services import chat_service
 
 from app.tests.agent_fakes import ScriptedLLM, agent_deps
+
+
+@pytest.fixture(autouse=True)
+def planner_only(monkeypatch):
+    monkeypatch.setenv("AGENT_SEED_RETRIEVAL", "false")
 
 
 def request(prompt, mode="evidence_aware_agentic_rag", ablation=None):

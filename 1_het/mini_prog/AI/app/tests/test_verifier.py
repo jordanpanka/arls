@@ -53,6 +53,28 @@ def test_unknown_path_is_flagged():
     assert "unknown_path" in [i.kind for i in result.errors]
 
 
+def test_plain_english_around_invokes_is_not_a_call_claim():
+    result = verify_answer("| 2 | `methodInvoker` | The core statement that actually invokes the test method | [GRAPH_1] |", build_store())
+    assert not result.errors
+    lowercase_code = verify_answer("`refund` invokes `process_payment` [GRAPH_1].", build_store())
+    assert [i.kind for i in lowercase_code.errors] == ["unsupported_relation"]
+
+
+def test_a_restated_summary_inherits_the_citations_of_the_lines_it_repeats():
+    answer = (
+        "**Statements around the test method**\n"
+        "| 1 | `process_payment` | validates and charges the order | [SOURCE_1] |\n"
+        "| 2 | `checkout` | entry point | [GRAPH_1] |\n"
+        "Order of application:\n"
+        "1. `checkout`\n"
+        "2. `process_payment`\n"
+        "The graph lists `refund_order` in this sequence."
+    )
+    result = verify_answer(answer, build_store())
+    assert result.unsupported_claims == ["The graph lists `refund_order` in this sequence."]
+    assert result.claims_supported == 4
+
+
 def test_fabricated_relation_is_flagged():
     result = verify_answer("`refund` calls `process_payment` [GRAPH_1].", build_store())
     assert [i.kind for i in result.errors] == ["unsupported_relation"]

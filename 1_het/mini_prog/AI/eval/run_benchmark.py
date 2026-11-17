@@ -23,7 +23,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--investigation-id", type=int, required=True)
     parser.add_argument("--project-id", type=int, required=True)
     parser.add_argument("--questions", default=os.path.join(HERE, "questions.json"))
-    parser.add_argument("--modes", default="adaptive_rag,evidence_aware_agentic_rag", help=f"comma separated: {', '.join(SUPPORTED_MODES)}")
+    parser.add_argument("--modes", default="selective_rag,evidence_aware_agentic_rag", help=f"comma separated: {', '.join(SUPPORTED_MODES)}")
     parser.add_argument("--ablations", default="", help=f"comma separated, applied to agent modes: {', '.join(ABLATIONS)}")
     parser.add_argument("--experiment-id", default=None)
     parser.add_argument("--limit", type=int, default=None)

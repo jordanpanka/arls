@@ -1,14 +1,16 @@
 import asyncio
+import re
 from dataclasses import dataclass, field
+from pathlib import PurePosixPath
 from typing import Awaitable, Callable
 
 from app.agents.requirements import QuestionAnalysis, analyze_question
 from app.evidence.sufficiency import name_matches
-from app.services.ollama_call import LlmResult
+from app.services.ollama_call import LlmResult, usage_counts
 from app.services.rag_graph import FALLBACK_CLASSIFICATION, NOT_FOUND_EN, build_classifier_prompt, parse_classification
 
-ROUTED_MODE = "routed_rag"
-PIPELINE_MODE = "adaptive_rag"
+ADAPTIVE_MODE = "adaptive_rag"
+PIPELINE_MODE = "selective_rag"
 AGENT_MODE = "evidence_aware_agentic_rag"
 
 RELATION_KINDS = {"dependency_relations", "impact_relations", "call_path", "change_impact"}
@@ -16,6 +18,12 @@ CHANGE_KINDS = {"analogous_feature", "extension_point", "test_conventions", "cha
 GRAPH_LOOKUP_KINDS = {"symbol_resolved", "definition_code", "dependency_relations"}
 GRAPH_LOOKUP_OVERRIDES = {"use_graph": True}
 MULTI_HOP_INTENTS = {"impact", "call_path"}
+ANSWER_GAP_PATTERN = re.compile(
+    r"\b(i (could not|couldn't|cannot|can't) find|not (shown|included|present|visible) in the (provided |given )?"
+    r"(context|sources|snippets|code)|the (provided |given )?(context|sources|snippets) (do|does) not (show|include|contain)|"
+    r"does not contain (the|any|enough)|nem (található|szerepel) a (megadott |kapott )?(kontextusban|forrásokban))",
+    re.IGNORECASE,
+)
 
 LlmFn = Callable[[str, bool, float], Awaitable[LlmResult]]
 
@@ -32,7 +40,7 @@ class RouteDecision:
 
     def to_dict(self) -> dict:
         return {
-            "requested": ROUTED_MODE,
+            "requested": ADAPTIVE_MODE,
             "chosen": self.mode,
             "reason": self.reason,
             "complexity": self.complexity,
@@ -62,6 +70,8 @@ def choose_strategy(analysis: QuestionAnalysis) -> RouteDecision:
         return decide(AGENT_MODE, "change_planning_question")
     if "design_pattern" in analysis.intents or "pattern_analysis" in kinds:
         return decide(AGENT_MODE, "design_pattern_question")
+    if "architecture" in analysis.intents:
+        return decide(AGENT_MODE, "architecture_question")
     if is_graph_lookup(analysis, kinds):
         return decide(PIPELINE_MODE, "graph_lookup_question", GRAPH_LOOKUP_OVERRIDES)
     if RELATION_KINDS & set(kinds):
@@ -73,13 +83,25 @@ def choose_strategy(analysis: QuestionAnalysis) -> RouteDecision:
     return decide(PIPELINE_MODE, f"{analysis.complexity}_question")
 
 
+def _variants(target: str) -> set[str]:
+    short = target.split(".")[-1]
+    variants = {target, short}
+    if len(short) > 3 and short.endswith("s"):
+        variants |= {target[:-1], short[:-1]}
+    return variants
+
+
 def _mentions(target: str, hit: dict) -> bool:
     payload = hit.get("payload") or {}
+    variants = _variants(target)
     name = payload.get("symbolName") or payload.get("name") or ""
-    if name and name_matches(target, name):
+    if name and any(name_matches(v, name) for v in variants):
+        return True
+    path = payload.get("path") or payload.get("filePath") or ""
+    if isinstance(path, str) and PurePosixPath(path.replace("\\", "/")).stem in variants:
         return True
     text = payload.get("code") or payload.get("content") or payload.get("text") or ""
-    return isinstance(text, str) and target.split(".")[-1] in text
+    return isinstance(text, str) and any(v.split(".")[-1] in text for v in variants)
 
 
 def escalation_reason(analysis: QuestionAnalysis | None, result: dict) -> str | None:
@@ -89,6 +111,8 @@ def escalation_reason(analysis: QuestionAnalysis | None, result: dict) -> str | 
     answer = (result.get("answer_en") or result.get("answer") or "").strip()
     if not answer or answer.startswith(NOT_FOUND_EN):
         return "pipeline_not_found"
+    if ANSWER_GAP_PATTERN.search(answer):
+        return "answer_reports_gaps"
     if analysis is None:
         return None
     if analysis.targets and not any(_mentions(t, h) for t in analysis.targets for h in hits):
@@ -103,13 +127,11 @@ def escalation_reason(analysis: QuestionAnalysis | None, result: dict) -> str | 
 
 async def classify_once(question: str, llm: LlmFn, timeout: float) -> tuple[dict, dict]:
     classification = {**FALLBACK_CLASSIFICATION, "question_en": question}
-    usage = {"llm_calls": 1, "input_tokens": 0, "output_tokens": 0}
     try:
         result = await asyncio.wait_for(llm(build_classifier_prompt(question), True, timeout), timeout=timeout)
     except Exception:
-        return classification, usage
-    usage["input_tokens"] = result.input_tokens
-    usage["output_tokens"] = result.output_tokens
+        return classification, usage_counts(None)
+    usage = usage_counts(result)
     try:
         classification = parse_classification(result.text, question)
     except Exception:

@@ -2,6 +2,7 @@ import time
 from collections import OrderedDict, defaultdict, deque
 from dataclasses import dataclass, field
 
+from app.evidence.store import CERTAINTY_RANK
 from app.services.evidence_service import normalize_path, short_symbol_name
 
 
@@ -121,6 +122,7 @@ class CodeGraph:
         self.out_edges: dict[str, dict[str, str]] = defaultdict(dict)
         self.in_edges: dict[str, dict[str, str]] = defaultdict(dict)
         self.unresolved: dict[str, list[UnresolvedCall]] = defaultdict(list)
+        same_name: dict[tuple[str, str], dict[str, str]] = defaultdict(dict)
 
         for call in data.calls:
             caller = str(call.get("callerId"))
@@ -139,7 +141,12 @@ class CodeGraph:
                 target, certainty = candidates[0], "inferred"
             if target == caller:
                 continue
-            if self.out_edges[caller].get(target) != "direct":
+            group = same_name[(caller, short_symbol_name(self.nodes[target].name))]
+            if CERTAINTY_RANK[certainty] > CERTAINTY_RANK.get(group.get(target), -1):
+                group[target] = certainty
+
+        for (caller, _), targets in same_name.items():
+            for target, certainty in self._disambiguate(caller, targets).items():
                 self.out_edges[caller][target] = certainty
                 self.in_edges[target][caller] = certainty
 
@@ -171,6 +178,20 @@ class CodeGraph:
             ))
 
         self._derive_overrides()
+
+    def _disambiguate(self, caller: str, targets: dict[str, str]) -> dict[str, str]:
+        if len({self.nodes[t].owner_id or self.nodes[t].path for t in targets}) <= 1:
+            return targets
+        source = self.nodes[caller]
+        same_class = {t: c for t, c in targets.items() if source.owner_id and self.nodes[t].owner_id == source.owner_id}
+        if same_class:
+            return same_class
+        same_file = {t: c for t, c in targets.items() if self.nodes[t].path == source.path}
+        if same_file:
+            return same_file
+        name = self.nodes[next(iter(targets))].name
+        self.unresolved[caller].append(UnresolvedCall(caller=caller, name=name, candidates=len(targets)))
+        return {}
 
     def _resolve_type(self, name: str, from_path: str) -> tuple[str, str] | None:
         candidates = self._classes_by_name.get(short_symbol_name(name), [])
@@ -252,6 +273,9 @@ class CodeGraph:
     def find(self, name: str, kind: str = "any", path_hint: str | None = None) -> list[SymbolNode]:
         query = name.strip()
         if "::" in query:
+            head, _, tail = query.partition("::")
+            if "::" not in tail and "@" not in tail:
+                return self.find(tail, kind, head)
             node = next((n for n in self.nodes.values() if n.symbol_id == query), None)
             return [node] if node else []
 
@@ -266,7 +290,7 @@ class CodeGraph:
             return node.kind == kind
 
         def hint_ok(node: SymbolNode) -> bool:
-            return not hint or hint in node.path
+            return not hint or hint in node.path or hint.endswith("/" + node.path)
 
         exact = [
             n for n in self.nodes.values()
@@ -340,8 +364,8 @@ class CodeGraph:
                 break
             if level >= max_depth:
                 continue
-            for neighbor in sorted(self.out_edges.get(node, {})):
-                if neighbor not in previous:
+            for neighbor, certainty in sorted(self.out_edges.get(node, {}).items()):
+                if certainty != "unresolved" and neighbor not in previous:
                     previous[neighbor] = node
                     queue.append((neighbor, level + 1))
         if target not in previous:

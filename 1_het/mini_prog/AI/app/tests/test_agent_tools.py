@@ -173,6 +173,41 @@ def test_call_resolution_distinguishes_direct_inferred_and_unresolved():
     assert unresolved == {"self.validate_input": 2, "logger.info": 0}
 
 
+def same_name_graph():
+    from app.tools.code_graph import CodeGraphData
+
+    def fn(fid, name, path, line):
+        return {"id": fid, "name": name, "path": path, "startLine": line, "endLine": line + 5}
+
+    def cls(cid, name, path, line, end):
+        return {"id": cid, "name": name, "path": path, "startLine": line, "endLine": end}
+
+    def call(caller, callee):
+        return {"callerId": caller, "calleeId": callee, "calleeName": "run", "calleePath": "x"}
+
+    return CodeGraph(CodeGraphData(
+        classes=[cls("cA", "Core", "src/Core.java", 1, 100), cls("cB", "Suite", "src/Suite.java", 1, 100),
+                 cls("cC", "Case", "src/Case.java", 1, 100), cls("cD", "Assert", "src/Assert.java", 1, 100)],
+        functions=[fn("a1", "run", "src/Core.java", 10), fn("a2", "run", "src/Core.java", 30), fn("a3", "main", "src/Core.java", 50),
+                   fn("b1", "run", "src/Suite.java", 10), fn("c1", "run", "src/Case.java", 10), fn("c2", "test", "src/Case.java", 30),
+                   fn("d1", "check", "src/Assert.java", 10), fn("d2", "check", "src/Assert.java", 30)],
+        calls=[call("a1", "a2"), call("a1", "b1"), call("a1", "c1"),
+               call("a3", "a1"), call("a3", "a2"),
+               call("c2", "a1"), call("c2", "b1"),
+               {"callerId": "c2", "calleeId": "d1", "calleeName": "check", "calleePath": "x"},
+               {"callerId": "c2", "calleeId": "d2", "calleeName": "check", "calleePath": "x"}],
+    ))
+
+
+def test_same_name_calls_prefer_the_callers_class_and_drop_cross_class_guesses():
+    graph = same_name_graph()
+    assert set(graph.out_edges["a1"]) == {"a2"}
+    assert set(graph.out_edges["a3"]) == {"a1", "a2"}
+    assert set(graph.out_edges["c2"]) == {"d1", "d2"}
+    assert {(u.name, u.candidates) for u in graph.unresolved["c2"]} == {("run", 2)}
+    assert graph.call_path("a3", "a2", 3) is not None
+
+
 async def test_get_callers_returns_relations_with_certainty():
     result = await run("get_callers", {"symbol": "process_payment"})
 

@@ -1,5 +1,5 @@
 from neo4j import GraphDatabase
-from app.config import NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD
+from app.config import CODE_GRAPH_LIMIT, NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD
 from app.services.evidence_service import short_symbol_name
 
 class Neo4jService:
@@ -467,7 +467,7 @@ class Neo4jService:
     LIMIT $limit
     """
 
-    def load_code_graph(self, user_id: int, investigation_id: int, project_id: int, limit: int = 20000) -> dict:
+    def load_code_graph(self, user_id: int, investigation_id: int, project_id: int, limit: int = CODE_GRAPH_LIMIT) -> dict:
         params = {
             "user_id": user_id,
             "investigation_id": investigation_id,

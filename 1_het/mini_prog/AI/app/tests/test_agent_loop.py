@@ -13,7 +13,7 @@ GOOD_ANSWER = "`PaymentService.process_payment` in src/payment/service.py:10-40 
 
 
 def config(**overrides) -> AgentConfig:
-    return replace(config_for("evidence_aware_agentic_rag", base=AgentConfig()), **overrides)
+    return replace(config_for("evidence_aware_agentic_rag", base=AgentConfig()), **{"enable_seed_retrieval": False, **overrides})
 
 
 async def agent(question, llm, cfg=None, mode="evidence_aware_agentic_rag", **deps):

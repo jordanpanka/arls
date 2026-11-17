@@ -24,13 +24,14 @@ EMBED_DIM = int(os.getenv("EMBED_DIM", "768"))
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
+CODE_GRAPH_LIMIT = int(os.getenv("CODE_GRAPH_LIMIT", "500000"))
 
 # Persisted code metrics live in MSSQL behind the .NET backend; the RAG workflow
 # reads them through its internal endpoint. The key must match Internal:ApiKey there.
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:5293")
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "local-dev-internal-key-change-me")
 
-CHAT_DEFAULT_MODE = os.getenv("CHAT_DEFAULT_MODE", "routed_rag")
+CHAT_DEFAULT_MODE = os.getenv("CHAT_DEFAULT_MODE", "adaptive_rag")
 ROUTER_ESCALATION = os.getenv("ROUTER_ESCALATION", "true").lower() in ("1", "true", "yes")
 AGENT_TRACE_ENABLED = os.getenv("AGENT_TRACE_ENABLED", "true").lower() in ("1", "true", "yes")
 AGENT_TRACE_DIR = os.getenv(

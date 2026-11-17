@@ -1,4 +1,5 @@
 import asyncio
+import re
 import time
 import uuid
 
@@ -7,11 +8,11 @@ import httpx
 from app.models.models import ServiceResult, ChatRequest, ChatResponse
 from app.services.file_service import FileService
 from app.config import CHAT_DEFAULT_MODE, QDRANT_URL, QDRANT_COLLECTION, ROUTER_ESCALATION
-from app.services.ollama_call import call_llm
+from app.services.ollama_call import call_llm, record_llm_usage
 from app.services.rag_graph import rag_graph
 from app.agents.config import AGENT_MODES, AgentConfig, UnknownAblationError, config_for
 from app.agents.graph import AgentDeps, default_llm, run_agent
-from app.agents.router import AGENT_MODE, ROUTED_MODE, escalation_reason, route_question
+from app.agents.router import AGENT_MODE, ADAPTIVE_MODE, escalation_reason, route_question
 from app.evaluation.trace_collector import TraceCollector
 from app.evidence.projection import build_citations, project_evidence, raw_evidence
 from app.evidence.store import EvidenceStore
@@ -92,12 +93,12 @@ async def send_message_async(prompt: ChatRequest) -> ServiceResult:
             "answer": answer
         })
 LEGACY_MODES: dict[str, dict] = {
-    "adaptive_rag": {},
+    "selective_rag": {},
     "vector_rag": {"use_graph": False, "needs_rerank": False, "use_metrics": False},
     "hybrid_rag": {"use_graph": True, "needs_rerank": True, "use_metrics": True},
 }
-MODE_ALIASES = {"langgraph": "adaptive_rag", "rag": "adaptive_rag", "agentic": "evidence_aware_agentic_rag", "auto": ROUTED_MODE}
-SUPPORTED_MODES = (*LEGACY_MODES, *AGENT_MODES, ROUTED_MODE)
+MODE_ALIASES = {"langgraph": "selective_rag", "rag": "selective_rag", "agentic": "evidence_aware_agentic_rag", "auto": ADAPTIVE_MODE}
+SUPPORTED_MODES = (*LEGACY_MODES, *AGENT_MODES, ADAPTIVE_MODE)
 
 trace_collector = TraceCollector()
 
@@ -107,7 +108,7 @@ class UnknownModeError(ValueError):
 
 
 def resolve_mode(mode: str | None) -> str:
-    name = (mode or CHAT_DEFAULT_MODE or "adaptive_rag").strip().lower()
+    name = (mode or CHAT_DEFAULT_MODE or "selective_rag").strip().lower()
     name = MODE_ALIASES.get(name, name)
     if name not in SUPPORTED_MODES:
         raise UnknownModeError(f"Unknown retrieval mode '{mode}'. Supported: {', '.join(SUPPORTED_MODES)}")
@@ -116,6 +117,35 @@ def resolve_mode(mode: str | None) -> str:
 
 def default_agent_deps(trace=None) -> AgentDeps:
     return AgentDeps(tools=default_tool_deps(), trace=trace if trace is not None else trace_collector)
+
+
+CITED_ALIAS = re.compile(r"\b((?:SOURCE|GRAPH|METRIC|HISTORY)_\d+)\b")
+
+
+def _usage_totals(calls: list[dict], extra: dict | None = None) -> dict:
+    known_in = [c["inputTokens"] for c in calls if c.get("inputTokens") is not None]
+    known_out = [c["outputTokens"] for c in calls if c.get("outputTokens") is not None]
+    missing = sum(1 for c in calls if c.get("inputTokens") is None or c.get("outputTokens") is None)
+    llm_calls = len(calls)
+    input_tokens = sum(known_in) if known_in else None
+    output_tokens = sum(known_out) if known_out else None
+    if extra:
+        llm_calls += extra.get("llm_calls") or 0
+        missing += extra.get("llm_calls_without_usage") or 0
+        if extra.get("llm_calls") and not extra.get("llm_calls_without_usage"):
+            input_tokens = (input_tokens or 0) + (extra.get("input_tokens") or 0)
+            output_tokens = (output_tokens or 0) + (extra.get("output_tokens") or 0)
+    return {
+        "llmCalls": llm_calls,
+        "inputTokens": input_tokens,
+        "outputTokens": output_tokens,
+        "llmCallsWithoutUsage": missing,
+        "tokenUsageComplete": llm_calls > 0 and missing == 0,
+    }
+
+
+def _optional_ms(value) -> float | None:
+    return round(value, 1) if isinstance(value, (int, float)) else None
 
 
 async def _run_legacy(prompt: ChatRequest, mode: str, run_id: str, trace,
@@ -127,7 +157,7 @@ async def _run_legacy(prompt: ChatRequest, mode: str, run_id: str, trace,
 
 async def _run_pipeline(prompt: ChatRequest, mode: str, run_id: str, trace,
                         classification: dict | None = None, route: dict | None = None, started: float | None = None,
-                        overrides: dict | None = None) -> tuple[ChatResponse, dict]:
+                        overrides: dict | None = None, usage: dict | None = None) -> tuple[ChatResponse, dict]:
     started = started or time.perf_counter()
     state = {
         "question": prompt.prompt,
@@ -140,7 +170,8 @@ async def _run_pipeline(prompt: ChatRequest, mode: str, run_id: str, trace,
     strategy_overrides = {**LEGACY_MODES[mode], **(overrides or {})}
     if strategy_overrides:
         state["strategy_overrides"] = strategy_overrides
-    result = await rag_graph.ainvoke(state)
+    with record_llm_usage() as llm_usage:
+        result = await rag_graph.ainvoke(state)
     latency_ms = (time.perf_counter() - started) * 1000
 
     evidence = result.get("evidence") or []
@@ -148,10 +179,15 @@ async def _run_pipeline(prompt: ChatRequest, mode: str, run_id: str, trace,
         "runId": run_id,
         "strategy": mode,
         "experimentId": prompt.experimentId,
+        "status": "completed",
         "latencyMs": round(latency_ms, 1),
         "retrievalLatencyMs": round(result.get("retrieval_time_ms") or 0, 1),
         "generationLatencyMs": round(result.get("generation_time_ms") or 0, 1),
+        "vectorLatencyMs": _optional_ms(result.get("retrieval_time_ms")),
+        "graphLatencyMs": _optional_ms(result.get("graph_time_ms")),
+        "contextLatencyMs": _optional_ms(result.get("context_time_ms")),
         "retrievedCount": result.get("retrieved_count"),
+        **_usage_totals(llm_usage, usage),
     }
     if route:
         execution["route"] = route
@@ -173,8 +209,12 @@ async def _run_pipeline(prompt: ChatRequest, mode: str, run_id: str, trace,
                     "score": r.get("score"),
                 }
                 for r in result.get("top_results") or []
-            ],
+            ] + [e for e in result.get("context_evidence") or [] if e.get("source") != "vector"],
             "evidenceIds": [e.get("id") for e in evidence if isinstance(e, dict)],
+            "contextEvidence": result.get("context_evidence") or [],
+            "contextText": result.get("context") or "",
+            "citedAliases": list(dict.fromkeys(CITED_ALIAS.findall(result.get("answer_en") or result.get("answer") or ""))),
+            "llmUsage": llm_usage,
         })
 
     return ChatResponse(
@@ -239,21 +279,28 @@ async def run_chat(prompt: ChatRequest, trace=None, deps: AgentDeps | None = Non
     mode = resolve_mode(prompt.mode)
     run_id = uuid.uuid4().hex
     trace = trace if trace is not None else trace_collector
-    if mode == ROUTED_MODE:
-        return await _run_routed(prompt, run_id, trace, deps)
+    if mode == ADAPTIVE_MODE:
+        return await _run_adaptive(prompt, run_id, trace, deps)
     if mode in AGENT_MODES:
         return await _run_agentic(prompt, mode, run_id, trace, deps)
     return await _run_legacy(prompt, mode, run_id, trace)
 
 
-async def _run_routed(prompt: ChatRequest, run_id: str, trace, deps: AgentDeps | None) -> ChatResponse:
+async def _run_adaptive(prompt: ChatRequest, run_id: str, trace, deps: AgentDeps | None,
+                      extra_overrides: dict | None = None) -> ChatResponse:
     started = time.perf_counter()
     llm = deps.llm if deps is not None else default_llm
     decision, classification, usage = await route_question(prompt.prompt, llm, AgentConfig.from_env().llm_timeout_s)
-    route = {**decision.to_dict(), "routingMs": round((time.perf_counter() - started) * 1000, 1)}
+    route = {
+        **decision.to_dict(),
+        "routingMs": round((time.perf_counter() - started) * 1000, 1),
+        "routingInputTokens": usage.get("input_tokens") if not usage.get("llm_calls_without_usage") else None,
+        "routingOutputTokens": usage.get("output_tokens") if not usage.get("llm_calls_without_usage") else None,
+    }
     if decision.mode in AGENT_MODES:
         return await _run_agentic(prompt, decision.mode, run_id, trace, deps, classification, route, usage)
-    response, result = await _run_pipeline(prompt, decision.mode, run_id, trace, classification, route, started, decision.overrides)
+    response, result = await _run_pipeline(prompt, decision.mode, run_id, trace, classification, route, started,
+                                           {**(decision.overrides or {}), **(extra_overrides or {})} or None, usage)
     reason = escalation_reason(decision.analysis, result) if ROUTER_ESCALATION else None
     if reason is None:
         return response

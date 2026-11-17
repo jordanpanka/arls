@@ -3,22 +3,22 @@
 The AI service answers repository questions with one of five retrieval strategies. The three
 pipeline strategies reuse the original LangGraph workflow (`AI/app/services/rag_graph.py`); the two
 agent strategies run a single LLM agent that selects tools (`AI/app/agents/graph.py`). A sixth mode,
-`routed_rag`, picks between the pipeline and the agent for each question.
+`adaptive_rag`, picks between the pipeline and the agent for each question.
 
 | Mode | Implementation |
 |---|---|
-| `routed_rag` | Chooses `adaptive_rag` or `evidence_aware_agentic_rag` per question. Default. Alias `auto`. |
+| `adaptive_rag` | Chooses `selective_rag` or `evidence_aware_agentic_rag` per question. Default. Alias `auto`. |
 | `vector_rag` | Original pipeline, graph, rerank and metrics forced off |
 | `hybrid_rag` | Original pipeline, graph, rerank and metrics forced on |
-| `adaptive_rag` | Original pipeline unchanged (question-type routing + regex metrics intent) |
+| `selective_rag` | Original pipeline unchanged (question-type routing + regex metrics intent) |
 | `agentic_rag` | Agent with iterative tool selection; no sufficiency check, no answer verification |
 | `evidence_aware_agentic_rag` | Agent with sufficiency check, grounded generation and verification |
 
 The mode comes from `ChatRequest.mode` (Python), `ChatRequest.mode` (RagApi), or `CHAT_DEFAULT_MODE`.
 `ChatRequest.ablation` applies one of `full`, `no_sufficiency`, `no_graph`, `no_metrics`,
-`no_iteration`, `no_verification`, `no_patterns` to an agent mode.
+`no_iteration`, `no_verification`, `no_patterns`, `no_seed` to an agent mode.
 
-## Routing between pipeline and agent (`routed_rag`)
+## Routing between pipeline and agent (`adaptive_rag`)
 
 `AI/app/agents/router.py` runs the classifier prompt once (language, English translation, question
 type), then derives the information requirements with `analyze_question` from
@@ -28,12 +28,12 @@ type), then derives the information requirements with `analyze_question` from
 |---|---|---|
 | change-planning intent or change requirements | agent | `change_planning_question` |
 | design pattern intent or `pattern_analysis` requirement | agent | `design_pattern_question` |
-| one function, direct callers/callees only, no class, file, impact or call path | `adaptive_rag` with `use_graph` forced | `graph_lookup_question` |
+| one function, direct callers/callees only, no class, file, impact or call path | `selective_rag` with `use_graph` forced | `graph_lookup_question` |
 | dependency, impact, call path or change impact requirement | agent | `relationship_question` |
 | a file is named (`file_context`) | agent | `file_question` |
 | `complexity` is `complex` | agent | `complex_question` |
-| `complexity` is `moderate` | `adaptive_rag` | `moderate_question` |
-| otherwise | `adaptive_rag` | `simple_question` |
+| `complexity` is `moderate` | `selective_rag` | `moderate_question` |
+| otherwise | `selective_rag` | `simple_question` |
 
 A `graph_lookup_question` is answered by the pipeline because its `search_knowledge_graph` node
 already returns the direct callers and callees of every retrieved function; the agent would only add
@@ -66,9 +66,9 @@ and `pipelineMs`, and benchmark rows add `escalatedTo` and `escalationReason`. S
 
 `execution.route` records `requested`, `chosen`, `reason`, `complexity`, `requirements`, `intents` and
 `routingMs`, and `execution.strategy` is the mode that actually ran. The UI shows the reason as an
-`auto: …` chip. In benchmark rows a routed run keeps `mode = routed_rag` and adds `routedTo`,
+`auto: …` chip. In benchmark rows an adaptive run keeps `mode = adaptive_rag` and adds `routedTo`,
 `routeReason` and `routingMs`. If a question has an `expected_route`, `routeCorrect` is added as
-well. Ablations only affect routed runs that go to the agent.
+well. Ablations only affect adaptive runs that go to the agent.
 
 ## Agent workflow
 
@@ -87,9 +87,28 @@ plan_tools --no calls / budget reached--> build_context
   then derives structured information requirements deterministically
   (`AI/app/agents/requirements.py`): `symbol_resolved`, `definition_code`, `dependency_relations`,
   `impact_relations`, `call_path`, `metrics`, `hotspots`, `file_context`, `semantic_context`.
+  Targets are code-shaped identifiers; a single capitalized word counts only in a role phrase such as
+  "the final Result object".
   Feature requests ("how can I add…", "where should I put…", "új funkció", "hozzáadnám…") get the
   `change_planning` intent and the requirements `analogous_feature`, `extension_point`,
   `test_conventions`, `change_impact` (or `impact_relations` when a symbol is named) and `change_risk`.
+- Seed retrieval (`enable_seed_retrieval`, `AGENT_SEED_RETRIEVAL`, ablation `no_seed`): before the
+  LLM plans anything, `plan_tools` runs the `selective_rag` retrieval plan through the agent's own
+  tools, in two phases without an LLM call (`seed_calls` in `AI/app/agents/planner.py`):
+  1. `semantic_code_search` on the classifier's `search_vectors`, and `find_symbol` for named targets.
+  2. Unless the question type is `text`: graph neighbours of up to three anchors. Resolved named
+     targets are the only anchors when there are any; otherwise the best semantic hits are used as
+     `path::name`, skipping test code unless the question mentions tests. The direction follows the
+     question: callees only for `call_flow`, callers only for impact and change planning, both
+     otherwise. A class gets `get_related_symbols`, and for relationship questions also the calls
+     of its members, the most connected members first. Metrics or hotspots when the question asks
+     for them.
+  The sufficiency check runs after each phase. After phase 2 the LLM planner is asked once even when
+  the check finds nothing missing (`seed_reviewed`); the prompt then asks it to confirm that every part
+  of the question is covered, so it can still add calls the requirement check cannot foresee. Seed
+  calls and rounds do not count against the planner's
+  iteration and tool-call budgets; `execution.seedPhases` and `execution.seedToolCalls` report them.
+  `agentic_rag` keeps seeding off.
 - `plan_tools` asks the LLM for a JSON list of tool calls. Every call is validated against the tool's
   Pydantic schema; unknown tools, invalid arguments and repeated calls are dropped and counted. If the
   output cannot be parsed, a deterministic plan is built from the open requirements.
@@ -101,7 +120,11 @@ plan_tools --no calls / budget reached--> build_context
 - `verify_answer` (`AI/app/evidence/verifier.py`) checks deterministically that cited ids exist and
   belong to the snapshot, cited paths and line ranges are inside collected evidence, `A calls B`
   claims exist as collected CALLS relations, numbers next to `METRIC_n` match measured values, and
-  lines with repository identifiers carry a citation. Lines starting with `Proposed:` and lines under a
+  lines with repository identifiers carry a citation. A call claim needs code-shaped names on both
+  sides (backticks, a call, a capital, `_` or `.`), so prose such as "actually invokes the" is not
+  read as one. An uncited line counts as supported when every identifier in it already appears in a
+  supported cited line, so a summary list that repeats a cited table passes; a line that brings in
+  a new identifier still needs its own citation. Bold-only title lines are treated as headings. Lines starting with `Proposed:` and lines under a
   `New code` / `Proposed` heading may name files and symbols that do not exist yet; their citations are
   still checked. Failures trigger at most
   `AGENT_MAX_VERIFY_REVISIONS` regenerations.
@@ -134,6 +157,14 @@ The code graph is loaded with five fixed, parameterized, scope-filtered Cypher q
 (`Neo4jService.load_code_graph`) and cached per project and snapshot. Calls are resolved with the
 same rules as the graph metrics: a located callee is `direct`, a unique short-name match is
 `inferred`, anything else is listed as `unresolved` and never turned into an edge.
+
+Indexing links a call to every `Function` node with the callee's name, so one `run()` call becomes
+an edge to every `run` method in the project. The loader keeps such a group only when all targets
+belong to one class (overloads). Otherwise it keeps the targets in the caller's class, then in the
+caller's file, and if there are none it lists the call as `unresolved` instead of creating edges.
+Calls through another object (`runner.run()`) to a same-named method of a different class are
+therefore lost when the caller's class has its own method of that name. `CODE_GRAPH_LIMIT`
+(default 500000) caps the rows per query; a smaller limit silently dropped calls on large projects.
 
 ### Graph schema
 
@@ -198,10 +229,13 @@ history and the retrieved evidence list.
 ```
 cd AI
 python eval/run_benchmark.py --user-id 1 --investigation-id 1 --project-id 1 \
-    --modes vector_rag,adaptive_rag,agentic_rag,evidence_aware_agentic_rag,routed_rag \
+    --modes vector_rag,selective_rag,agentic_rag,evidence_aware_agentic_rag,adaptive_rag \
     --ablations full,no_sufficiency,no_graph,no_metrics,no_iteration --experiment-id exp1
 ```
 
 `AI/eval/questions.json` holds the question set; `expected_files` and `expected_symbols` enable
 evidence recall, precision, Recall@k and MRR (`AI/app/evaluation/metrics.py`). Outputs go to
 `AI/eval/results/`.
+
+The research evaluation framework (forced strategies, retrieval and answer metrics, routing oracle,
+change impact, reports) is described in [evaluation.md](evaluation.md).

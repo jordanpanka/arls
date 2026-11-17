@@ -16,6 +16,7 @@ from app.services.evidence_service import (
     normalize_path,
     result_location,
     subgraph_to_text,
+    to_graph_node,
 )
 from app.metrics.intent import detect_metrics_intent
 from app.metrics.provider import BackendMetricsProvider, MetricsProvider, MetricsQuery, SymbolRef
@@ -80,8 +81,11 @@ class RagState(TypedDict, total=False):
     retrieved_contexts: List[str]
 
     retrieval_time_ms: float
+    graph_time_ms: float
+    context_time_ms: float
     generation_time_ms: float
     total_time_ms: float
+    context_evidence: List[dict]
 
     retrieved_count: int
 
@@ -635,7 +639,46 @@ async def prepare_evidence(state: RagState) -> RagState:
     }
 
 
+def _graph_context_evidence(subgraphs: list[dict]) -> list[dict]:
+    items = []
+    seen = set()
+    for subgraph in subgraphs or []:
+        for raw in subgraph.get("nodes", []):
+            node = to_graph_node(raw, used_as_evidence=str(raw.get("id")) == str(subgraph.get("root")))
+            if node.id in seen:
+                continue
+            seen.add(node.id)
+            items.append({
+                "alias": "GRAPH_1",
+                "source": "graph",
+                "path": node.filePath,
+                "symbol": node.label if node.type != "File" else None,
+                "kind": node.type,
+                "start": node.startLine,
+                "end": node.endLine,
+            })
+    return items
+
+
+def _metric_context_evidence(evidence: list) -> list[dict]:
+    return [
+        {
+            "alias": item.get("id"),
+            "source": "metric",
+            "path": item.get("filePath"),
+            "symbol": item.get("symbol"),
+            "kind": item.get("scope"),
+            "start": item.get("startLine"),
+            "end": item.get("endLine"),
+        }
+        for item in evidence or []
+        if isinstance(item, dict) and item.get("type") == "metric"
+    ]
+
+
 async def build_context(state: RagState) -> RagState:
+    context_started = time.perf_counter()
+    context_evidence = []
     top_results = state.get("top_results", [])
     source_ids = state.get("source_ids")
     if source_ids is None:
@@ -694,6 +737,17 @@ async def build_context(state: RagState) -> RagState:
         
         #test
         retrieved_contexts.append(text)
+        context_evidence.append({
+            "alias": source_id,
+            "source": "vector",
+            "path": path,
+            "symbol": name or None,
+            "kind": kind or None,
+            "start": location["startLine"],
+            "end": location["endLine"],
+            "score": result.get("score"),
+            "matchedVector": matched_vector or None,
+        })
 
     context = "\n\n---\n\n".join(context_parts)
     # The section headers are only added when there is more than source code, so
@@ -707,11 +761,13 @@ async def build_context(state: RagState) -> RagState:
     if graph_context:
         context += "\n\n===== KNOWLEDGE GRAPH RELATIONS =====\n\n"
         context += "\n\n".join(graph_context)
+        context_evidence.extend(_graph_context_evidence(state.get("graph_subgraphs", [])))
 
     if metrics_context:
         context += "\n\n===== CODE METRICS (measured, not estimated) =====\n\n"
         context += metrics_context
         context = context.lstrip()
+        context_evidence.extend(_metric_context_evidence(state.get("evidence")))
 
     print("Keresési kontextus:", context)
 
@@ -720,7 +776,9 @@ async def build_context(state: RagState) -> RagState:
         "context": context,
         #test
         "retrieved_contexts": retrieved_contexts,
-        "retrieved_count": len(retrieved_contexts)
+        "retrieved_count": len(retrieved_contexts),
+        "context_evidence": context_evidence,
+        "context_time_ms": (time.perf_counter() - context_started) * 1000
     }
 
 
@@ -875,6 +933,7 @@ def build_translation_prompt(answer_en: str, language_name: str, references: str
 
 
 async def search_knowledge_graph(state: RagState) -> RagState:
+    start_time = time.perf_counter()
     top_results = state.get("top_results", [])
     graph_context = []
     graph_subgraphs = []
@@ -884,7 +943,7 @@ async def search_knowledge_graph(state: RagState) -> RagState:
         neo4j = Neo4jService()
     except Exception as e:
         print("search_knowledge_graph hiba:", e)
-        return {**state, "graph_context": [], "graph_subgraphs": []}
+        return {**state, "graph_context": [], "graph_subgraphs": [], "graph_time_ms": (time.perf_counter() - start_time) * 1000}
 
     try:
         for result in top_results:
@@ -926,7 +985,8 @@ async def search_knowledge_graph(state: RagState) -> RagState:
     return {
         **state,
         "graph_context": graph_context,
-        "graph_subgraphs": graph_subgraphs
+        "graph_subgraphs": graph_subgraphs,
+        "graph_time_ms": (time.perf_counter() - start_time) * 1000
     }
 async def rerank_results(state: RagState) -> RagState:
     top_results = state.get("top_results", [])

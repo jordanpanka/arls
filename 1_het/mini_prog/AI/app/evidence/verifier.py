@@ -22,6 +22,8 @@ EXEMPT_HEADINGS = re.compile(r"^\W*(missing evidence|hypothes[ie]s|feltételezé
 HYPOTHESIS = re.compile(r"\b(hypothesis|feltételezés|likely|probably|might|may|valószínűleg)\b", re.IGNORECASE)
 PROPOSED = re.compile(r"^\W*(proposed|javasolt)\W*:", re.IGNORECASE)
 PROPOSED_HEADINGS = re.compile(r"^\W*(new code|proposed|pattern-based refactoring|új kód|javasolt)", re.IGNORECASE)
+BOLD_TITLE = re.compile(r"^\*\*[^*]+\*\*:?$")
+CODE_SHAPE = re.compile(r"[A-Z_.]")
 
 ERROR_KINDS = {"unknown_citation", "snapshot_mismatch", "line_range", "unknown_path", "unsupported_relation", "metric_mismatch"}
 
@@ -80,8 +82,8 @@ def _units(answer: str) -> list[tuple[str, bool, bool]]:
             exempt = True
             units.append((line, True, False))
             continue
-        if line.startswith("#"):
-            heading = line.lstrip("# ")
+        if line.startswith("#") or BOLD_TITLE.match(line):
+            heading = line.lstrip("# ").strip("*: ")
             exempt = bool(EXEMPT_HEADINGS.match(heading))
             proposed_section = bool(PROPOSED_HEADINGS.match(heading))
             continue
@@ -146,9 +148,23 @@ def _within(start: int, end: int, ranges: list[tuple[str, int, int]], path: str 
     return False
 
 
+def _code_like(token: str, line: str) -> bool:
+    return bool(CODE_SHAPE.search(token)) or f"`{token}" in line or bool(re.search(rf"\b{re.escape(token)}\(", line))
+
+
+def _identifiers(line: str) -> set[str]:
+    names = set()
+    for match in IDENTIFIER.findall(CITATION.sub(" ", line)):
+        name = match.strip("`").rstrip("(").removesuffix("()")
+        short = name.split(".")[-1].lower()
+        if short:
+            names.add(short)
+    return names
+
+
 def _relation_exists(source: str, target: str, evidence: list[Evidence]) -> bool:
     for e in evidence:
-        if e.relation is None or e.relation.type != "CALLS":
+        if e.relation is None or e.relation.type != "CALLS" or e.certainty == "unresolved":
             continue
         if name_matches(source, e.relation.source_label) and name_matches(target, e.relation.target_label):
             return True
@@ -160,6 +176,8 @@ def verify_answer(answer: str, store: EvidenceStore) -> VerificationResult:
     all_evidence = store.all()
     known_paths = {normalize_path(e.file_path) for e in all_evidence if e.file_path}
     known_paths |= {normalize_path(e.relation.target_path) for e in all_evidence if e.relation and e.relation.target_path}
+    supported_names: set[str] = set()
+    uncited: list[str] = []
 
     for line, exempt, proposed in _units(answer):
         aliases = [m.group(1) for m in CITATION.finditer(line)]
@@ -210,6 +228,7 @@ def verify_answer(answer: str, store: EvidenceStore) -> VerificationResult:
 
         claims = [(m.group(1), m.group(2)) for m in CALL_CLAIM.finditer(line)]
         claims += [(m.group(2), m.group(1)) for m in CALLED_BY_CLAIM.finditer(line)]
+        claims = [(s, t) for s, t in claims if _code_like(s, line) and _code_like(t, line)]
         graph_cited = [e for e in cited if e.relation is not None]
         for source, target in claims:
             pool = graph_cited or all_evidence
@@ -228,11 +247,22 @@ def verify_answer(answer: str, store: EvidenceStore) -> VerificationResult:
                     line_ok = False
 
         if not aliases:
-            result.unsupported_claims.append(line)
-            line_ok = False
+            if line_ok:
+                uncited.append(line)
+            else:
+                result.unsupported_claims.append(line)
+            continue
 
         if line_ok:
             result.claims_supported += 1
+            supported_names |= _identifiers(line)
+
+    for line in uncited:
+        names = _identifiers(line)
+        if names and names <= supported_names:
+            result.claims_supported += 1
+        else:
+            result.unsupported_claims.append(line)
 
     return result
 

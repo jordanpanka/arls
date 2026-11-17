@@ -37,6 +37,11 @@ class AgentState(TypedDict, total=False):
 
     seed_hits: list[dict]
     seeded_evidence: int
+    search_vectors: list[str]
+    seed_phase: int
+    seed_tool_calls: int
+    seed_iterations: int
+    seed_reviewed: bool
     evidence: Annotated[dict, merge_evidence_maps]
     aliases: dict
     new_evidence_count: int
@@ -50,12 +55,15 @@ class AgentState(TypedDict, total=False):
     llm_calls: Annotated[int, operator.add]
     input_tokens: Annotated[int, operator.add]
     output_tokens: Annotated[int, operator.add]
+    llm_calls_without_usage: Annotated[int, operator.add]
     retrieval_time_ms: Annotated[float, operator.add]
     generation_time_ms: Annotated[float, operator.add]
     started_at: float
     deadline: float
 
     context: str
+    context_aliases: list[str]
+    context_time_ms: float
     open_gaps: list[str]
     answer_en: str
     answer: str

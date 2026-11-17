@@ -279,7 +279,7 @@ def test_proposed_lines_cannot_cite_unknown_evidence():
 
 async def test_agent_answers_feature_requests_with_a_change_plan():
     llm = ScriptedLLM(plans=["not json"] * 6, answers=["## Pattern to follow\nUse the closest analog [SOURCE_1]."])
-    cfg = replace(config_for("evidence_aware_agentic_rag", base=AgentConfig()), max_iterations=4)
+    cfg = replace(config_for("evidence_aware_agentic_rag", "no_seed", base=AgentConfig()), max_iterations=4)
     deps, _ = agent_deps(llm, source=FakeSource(CHANGE_SOURCES), vectors=FakeVectors(VECTOR_HITS))
     state = await run_agent("How can I add a refund export feature?", SCOPE, "evidence_aware_agentic_rag", cfg, deps, run_id="run-c")
 

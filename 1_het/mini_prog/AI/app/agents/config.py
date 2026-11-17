@@ -58,6 +58,7 @@ class AgentConfig:
     enable_verification: bool = True
     enable_history_tools: bool = False
     enable_pattern_analysis: bool = True
+    enable_seed_retrieval: bool = True
     pattern_max_files: int = 10
     pattern_max_file_lines: int = 1600
     pattern_max_runs: int = 2
@@ -103,6 +104,7 @@ class AgentConfig:
             price_out_per_1k=_float("LLM_PRICE_OUT_PER_1K", 0.0),
             enable_history_tools=_bool("AGENT_ENABLE_HISTORY_TOOLS", False),
             enable_pattern_analysis=_bool("ENABLE_DESIGN_PATTERN_ANALYSIS", True),
+            enable_seed_retrieval=_bool("AGENT_SEED_RETRIEVAL", True),
             pattern_max_files=_int("PATTERN_MAX_FILES", 10),
             pattern_max_file_lines=_int("PATTERN_MAX_FILE_LINES", 1600),
             pattern_max_runs=_int("PATTERN_MAX_RUNS", 2),
@@ -121,7 +123,7 @@ class AgentConfig:
 AGENT_MODES = ("agentic_rag", "evidence_aware_agentic_rag")
 
 MODE_PRESETS: dict[str, dict] = {
-    "agentic_rag": {"enable_sufficiency": False, "enable_verification": False},
+    "agentic_rag": {"enable_sufficiency": False, "enable_verification": False, "enable_seed_retrieval": False},
     "evidence_aware_agentic_rag": {},
 }
 
@@ -133,6 +135,7 @@ ABLATIONS: dict[str, dict] = {
     "no_iteration": {"enable_iteration": False},
     "no_verification": {"enable_verification": False},
     "no_patterns": {"enable_pattern_analysis": False},
+    "no_seed": {"enable_seed_retrieval": False},
 }
 
 

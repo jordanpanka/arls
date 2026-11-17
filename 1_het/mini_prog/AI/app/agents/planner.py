@@ -1,4 +1,5 @@
 import json
+import re
 from dataclasses import dataclass, field
 
 from pydantic import ValidationError
@@ -6,8 +7,9 @@ from pydantic import ValidationError
 from app.agents.requirements import QuestionAnalysis
 from app.evidence.schemas import Evidence
 from app.evidence.sufficiency import RequirementStatus, analog_evidence, analog_files, touches
-from app.services.evidence_service import short_symbol_name
+from app.services.evidence_service import normalize_path, short_symbol_name
 from app.tools.base import ToolSpec, call_signature
+from app.tools.change_tools import TEST_PATH
 
 
 @dataclass
@@ -252,4 +254,93 @@ def fallback_calls(
             for target in analysis.targets[:1]:
                 add("keyword_code_search", {"pattern": short_symbol_name(target)}, f"literal search for {target}")
 
+    return calls
+
+
+SEED_PHASES = 2
+SEED_ANCHORS = 3
+SEED_GRAPH_CALLS = 6
+CALLABLE_KINDS = {"function", "method"}
+GRAPH_ANCHOR_KINDS = CALLABLE_KINDS | {"class"}
+
+
+def seed_anchors(analysis: QuestionAnalysis, evidence: list[Evidence], limit: int = SEED_ANCHORS,
+                 include_tests: bool = False) -> list[tuple[str, str]]:
+    anchors: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+
+    def add(name: str, kind: str, location: Evidence):
+        key = (normalize_path(location.file_path or ""), short_symbol_name(location.symbol_name or name))
+        if name and key not in seen:
+            seen.add(key)
+            anchors.append((name, kind))
+
+    for target in analysis.targets[:2]:
+        resolved = [e for e in _resolved(target, evidence) if e.symbol_kind in GRAPH_ANCHOR_KINDS]
+        if resolved:
+            kind = "class" if any(e.symbol_kind == "class" for e in resolved) else resolved[0].symbol_kind
+            add(_symbol_arg(target, evidence), kind, resolved[0])
+    if anchors:
+        return anchors[:limit]
+
+    hits = sorted(
+        (e for e in evidence if "semantic_code_search" in e.produced_by and e.symbol_kind in GRAPH_ANCHOR_KINDS and e.symbol_name
+         and (include_tests or not TEST_PATH.search(normalize_path(e.file_path or "")))),
+        key=lambda e: -(e.retrieval_score or 0),
+    )
+    for hit in hits:
+        add(f"{hit.file_path}::{hit.symbol_name}", hit.symbol_kind, hit)
+    return anchors[:limit]
+
+
+def seed_directions(analysis: QuestionAnalysis) -> tuple[bool, bool]:
+    intents = set(analysis.intents)
+    if "impact" in intents or "change_planning" in intents:
+        return False, True
+    if "call_flow" in intents and "dependency" not in intents:
+        return True, False
+    return True, True
+
+
+def seed_calls(
+    phase: int,
+    analysis: QuestionAnalysis,
+    question_type: str,
+    search_vectors: list[str] | None,
+    evidence: list[Evidence],
+    question_en: str,
+) -> list[dict]:
+    calls: list[dict] = []
+
+    def add(tool: str, args: dict, purpose: str):
+        calls.append({"tool": tool, "args": args, "purpose": purpose})
+
+    if phase == 1:
+        add("semantic_code_search", {"query": question_en[:400], "vectors": search_vectors or ["code", "summary"]},
+            "baseline semantic retrieval")
+        for target in analysis.targets[:2]:
+            add("find_symbol", {"name": target}, f"locate {target}")
+        return calls
+
+    if question_type != "text":
+        callees, callers = seed_directions(analysis)
+        relations = bool({"call_flow", "dependency", "impact", "call_path"} & set(analysis.intents))
+        include_tests = bool(re.search(r"\btests?\b|\bteszt", question_en, re.IGNORECASE))
+        for name, kind in seed_anchors(analysis, evidence, include_tests=include_tests):
+            if kind == "class":
+                add("get_related_symbols", {"symbol": name}, f"structure around {name}")
+                if not relations:
+                    continue
+            if callees:
+                add("get_callees", {"symbol": name}, f"what {name} calls")
+            if callers:
+                add("get_callers", {"symbol": name}, f"who calls {name}")
+        calls = calls[:SEED_GRAPH_CALLS]
+
+    metric_needs = [
+        RequirementStatus(r.kind, r.target, r.description, "missing")
+        for r in analysis.requirements if r.kind in ("metrics", "hotspots")
+    ]
+    if metric_needs:
+        calls += fallback_calls(analysis, metric_needs, evidence, [], question_en, 1)
     return calls

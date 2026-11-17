@@ -9,7 +9,13 @@ CALL_PATTERN = re.compile(r"\b([A-Za-z_][\w.]*)\(\)")
 DOTTED_PATTERN = re.compile(r"\b([A-Za-z_]\w+(?:\.[A-Za-z_]\w+)+)\b")
 CAMEL_PATTERN = re.compile(r"\b([a-z][a-z0-9]*[A-Z]\w*)\b")
 PASCAL_PATTERN = re.compile(r"\b([A-Z][a-z0-9]+[A-Z]\w*)\b")
+ACRONYM_PASCAL_PATTERN = re.compile(r"\b([A-Z]{2,}[a-z0-9]+[A-Z]\w*)\b")
 SNAKE_PATTERN = re.compile(r"\b([A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+)\b")
+ROLE_PATTERN = re.compile(r"\bthe (?:\w+ )?([A-Z][A-Za-z0-9_]+) (?:object|class|interface|instance|type|enum)s?\b")
+COMPONENT_PATTERN = re.compile(
+    r"\b(?i:the|a|an|each|every|its|their)\s+([A-Z][a-z][A-Za-z0-9_]*)\s+"
+    r"(?:task|element|adapter|runner|annotation|abstraction|implementation|component|handler|listener|factory)s?\b"
+)
 
 STOPWORDS = {"e.g", "i.e", "etc", "vs", "a.k.a"}
 CLASS_PATTERN = re.compile(r"\b(class|classes|osztály\w*)\b")
@@ -21,7 +27,9 @@ INTENT_PATTERNS: dict[str, list[str]] = {
         r"\bfügg(?!vény)\w*\b", r"\bhív\w*\b", r"\bhasznál(?!hat)\w*\b", r"\bimportál\w*\b",
     ],
     "impact": [
-        r"\baffect\w*\b", r"\bimpact\w*\b", r"\bbreak\w*\b", r"\bripple\b", r"\bside[- ]effects?\b",
+        r"\b(chang|modif|introduc|remov|renam|replac|add|delet)\w*\b.*\baffect\w*\b",
+        r"\baffect\w*\b.*\b(chang|modif|introduc|remov|renam|replac|add|delet)\w*\b",
+        r"\bimpact\w*\b", r"\bbreak\w*\b", r"\bripple\b", r"\bside[- ]effects?\b",
         r"\b(modif(y|ied|ying|ication)|chang(e|ed|ing))\b.*\b(what|which|who)\b",
         r"\b(what|which|who)\b.*\b(modif(y|ied|ying|ication)|chang(e|ed|ing))\b",
         r"\bérint\w*\b", r"\bhatás\w*\b", r"\bmódosít\w*\b", r"\bváltoztat\w*\b", r"\bmegváltoz\w*\b",
@@ -29,6 +37,13 @@ INTENT_PATTERNS: dict[str, list[str]] = {
     "call_path": [
         r"\bcall (path|chain)\b", r"\bpath from\b", r"\bhow does .+ reach\b", r"\bflow from\b.+\bto\b",
         r"\bhívási (lánc|út)\b",
+    ],
+    "call_flow": [
+        r"\b(in )?(what|which) order\b", r"\border (in which|of execution)\b", r"\bsequence of\b",
+        r"\bwrap(s|ped|ping)? around\b", r"\btrace (the|how|what)\b", r"\bexecution (path|flow|order)\b",
+        r"\bpropagat\w*\b", r"\bstep by step\b",
+        r"\b(milyen|melyik) sorrend\w*\b", r"\bvégrehajtási (út|útvonal|sorrend|folyamat)\w*\b",
+        r"\blépésről lépésre\b", r"\btovábbterjed\w*\b",
     ],
     "comprehension": [
         r"\bwhat (does|is|are)\b", r"\bexplain\w*\b", r"\bhow (does|do|is)\b.*\bwork\b", r"\bpurpose\b",
@@ -56,6 +71,12 @@ INTENT_PATTERNS: dict[str, list[str]] = {
         r"\btoo many (if|ifs|switch|case|cases|conditions|conditionals)\b", r"\b(if[- ]else|switch) (chain|statement|block)s?\b",
         r"\btervezési mint\w*\b", r"\bmint(a|át|ák|ákat)\b.*\b(alkalmaz|használ|javasol)\w*", r"\brefaktor\w*\b",
         r"\begyszerűsít\w*\b", r"\bátszervez\w*\b", r"\bátír\w* nélkül\b",
+    ],
+    "architecture": [
+        r"\barchitect\w*\b", r"\bresponsibilit(y|ies)\b", r"\binherit\w*\b", r"\bextension points?\b",
+        r"\bcompatib\w*\b", r"\bcompos(e|es|ed|ing|ition)\b", r"\bintegrat(e|ed|es|ing|ion)\b",
+        r"\barchitektúr\w*\b", r"\bfelelősség\w*\b", r"\böröklő?d\w*\b", r"\bbővítési pont\w*\b",
+        r"\bkompatib\w*\b", r"\bkompozíci\w*\b", r"\bintegrál\w*\b",
     ],
 }
 
@@ -125,11 +146,13 @@ def extract_targets(*texts: str) -> tuple[list[str], list[str]]:
         for match in FILE_PATTERN.finditer(text):
             add(files, match.group(1).replace("\\", "/"))
         stripped = FILE_PATTERN.sub(" ", text)
-        for pattern in (QUOTED_PATTERN, CALL_PATTERN, DOTTED_PATTERN, PASCAL_PATTERN, CAMEL_PATTERN, SNAKE_PATTERN):
+        for pattern in (QUOTED_PATTERN, CALL_PATTERN, DOTTED_PATTERN, PASCAL_PATTERN, ACRONYM_PASCAL_PATTERN, CAMEL_PATTERN,
+                        SNAKE_PATTERN, ROLE_PATTERN, COMPONENT_PATTERN):
             for match in pattern.finditer(stripped):
                 add(targets, _clean(match.group(1)))
 
-    deduped = [t for t in targets if not any(t != other and other.endswith("." + t) for other in targets)]
+    deduped = [t for t in targets
+               if not any(t != other and (other.endswith("." + t) or other.startswith(t + ".")) for other in targets)]
     return deduped, files
 
 
@@ -158,11 +181,13 @@ def analyze_question(question: str, question_en: str | None = None) -> QuestionA
 
     change = "change_planning" in intents
     pattern = "design_pattern" in intents
+    flow = "call_flow" in intents
+    architecture = "architecture" in intents
 
     for target in targets[:3]:
         need("symbol_resolved", target, f"locate the definition of {target}")
 
-    if "comprehension" in intents or not intents or change or pattern:
+    if "comprehension" in intents or not intents or change or pattern or flow or architecture:
         for target in targets[:2]:
             need("definition_code", target, f"read the implementation of {target}")
 
@@ -177,7 +202,7 @@ def analyze_question(question: str, question_en: str | None = None) -> QuestionA
             need("change_impact", None, "code that depends on the files the change would touch")
         need("change_risk", None, "measured complexity of the files the change would touch")
 
-    if "dependency" in intents and "impact" not in intents:
+    if ("dependency" in intents or flow) and "impact" not in intents:
         for target in targets[:2] or [None]:
             need("dependency_relations", target, f"call/dependency relationships of {target or 'the relevant component'}")
 

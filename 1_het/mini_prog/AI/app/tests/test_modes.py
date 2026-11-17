@@ -37,17 +37,17 @@ def agentic(monkeypatch):
 
 
 def test_default_mode_routes_per_question():
-    assert chat_service.resolve_mode(None) == "routed_rag"
+    assert chat_service.resolve_mode(None) == "adaptive_rag"
 
 
 async def test_adaptive_mode_keeps_the_existing_pipeline_unchanged(legacy):
-    result = await chat_service.send_message_async_langgraph(request("adaptive_rag"))
+    result = await chat_service.send_message_async_langgraph(request("selective_rag"))
     assert result.is_success
     assert legacy == [{"question": "Mi ez?", "user_id": 1, "investigation_id": 2, "project_id": 3}]
     data = result.data
     assert data["answer"] == "Valasz [SOURCE_1]."
     assert data["evidence"] == []
-    assert data["execution"]["strategy"] == "adaptive_rag"
+    assert data["execution"]["strategy"] == "selective_rag"
     assert ChatResponse.model_validate(data).answer == data["answer"]
 
 
@@ -99,5 +99,5 @@ async def test_unknown_mode_or_ablation_fails_cleanly(mode, ablation):
 
 def test_supported_modes():
     assert set(chat_service.SUPPORTED_MODES) == {
-        "vector_rag", "hybrid_rag", "adaptive_rag", "agentic_rag", "evidence_aware_agentic_rag", "routed_rag",
+        "vector_rag", "hybrid_rag", "selective_rag", "agentic_rag", "evidence_aware_agentic_rag", "adaptive_rag",
     }

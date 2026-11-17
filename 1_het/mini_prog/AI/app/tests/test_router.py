@@ -1,7 +1,7 @@
 import pytest
 
 from app.agents.requirements import analyze_question
-from app.agents.router import AGENT_MODE, PIPELINE_MODE, ROUTED_MODE, choose_strategy, escalation_reason, route_question
+from app.agents.router import AGENT_MODE, PIPELINE_MODE, ADAPTIVE_MODE, choose_strategy, escalation_reason, route_question
 from app.models.models import ChatRequest
 from app.services import chat_service, rag_graph
 from app.tests.agent_fakes import ScriptedLLM, agent_deps, qdrant_hit
@@ -10,7 +10,7 @@ CLASSIFIER = "Analyse a user's question"
 PLANNER = "retrieval planner"
 
 
-def request(prompt, mode=ROUTED_MODE):
+def request(prompt, mode=ADAPTIVE_MODE):
     return ChatRequest(prompt=prompt, userId=1, investigationId=2, projectId=3, mode=mode)
 
 
@@ -51,12 +51,29 @@ def pipeline(monkeypatch):
     ("Should ShippingCalculator use a design pattern?", AGENT_MODE, "design_pattern_question"),
     ("What is in src/payment/service.py?", AGENT_MODE, "file_question"),
     ("What does process_payment do and how complex is it?", PIPELINE_MODE, "moderate_question"),
+    ("What are the responsibilities of OrderService and PaymentService?", AGENT_MODE, "architecture_question"),
+    ("How does the Gateway abstraction support composition of payment steps?", AGENT_MODE, "architecture_question"),
+    ("How are BaseHandler and JsonHandler related through inheritance?", AGENT_MODE, "architecture_question"),
+    ("Milyen felelősségei vannak a PaymentService osztálynak az architektúrában?", AGENT_MODE, "architecture_question"),
+    ("How do includes and excludes affect file selection?", PIPELINE_MODE, "simple_question"),
+    ("Which tests are affected by changing the default ordering?", AGENT_MODE, "relationship_question"),
 ])
 def test_choose_strategy(question, mode, reason):
     decision = choose_strategy(analyze_question(question))
     assert (decision.mode, decision.reason) == (mode, reason)
     route = decision.to_dict()
-    assert route["requested"] == ROUTED_MODE and route["chosen"] == mode
+    assert route["requested"] == ADAPTIVE_MODE and route["chosen"] == mode
+
+
+@pytest.mark.parametrize("question,expected", [
+    ("How does JUnitCore run a test class?", ["JUnitCore"]),
+    ("How does the Javac task decide which sources require compilation?", ["Javac"]),
+    ("How does the Exec task execute an external process?", ["Exec"]),
+    ("Trace an UnknownElement from XML to the task.", ["UnknownElement"]),
+    ("How does Ant load a build file?", []),
+])
+def test_extracts_component_and_acronym_targets(question, expected):
+    assert analyze_question(question).targets == expected
 
 
 async def test_route_question_falls_back_when_the_classifier_fails():
@@ -135,7 +152,7 @@ async def test_explicit_modes_are_not_routed():
 
 
 def test_auto_alias_resolves_to_routed_mode():
-    assert chat_service.resolve_mode("auto") == ROUTED_MODE
+    assert chat_service.resolve_mode("auto") == ADAPTIVE_MODE
 
 
 @pytest.mark.parametrize("question,result,reason", [
@@ -143,6 +160,15 @@ def test_auto_alias_resolves_to_routed_mode():
     ("What does validate_proxy do?", {"answer": "ok", "top_results": []}, "no_retrieval_results"),
     ("What does validate_proxy do?", pipeline_result("validate_proxy", answer=rag_graph.NOT_FOUND_EN), "pipeline_not_found"),
     ("What does validate_proxy do?", pipeline_result("charge_card"), "targets_not_retrieved"),
+    ("How are failures reported to registered RunListeners?", pipeline_result("RunListener"), None),
+    ("How does Javac select a compiler?", pipeline_result(
+        "getCompiler", answer="The factory picks an adapter, but I could not find where the attribute is read."), "answer_reports_gaps"),
+    ("How does Javac select a compiler?", pipeline_result(
+        "getCompiler", answer="The provided context does not show the fallback order."), "answer_reports_gaps"),
+    ("How does Javac select a compiler?", pipeline_result(
+        "getCompiler", answer="`getCompiler` maps the attribute to an adapter [SOURCE_1]."), None),
+    ("How is RunWith used?", {"answer": "ok", "top_results": [
+        {"payload": {"path": "src/org/junit/runner/RunWith.java", "name": "value", "code": "Class<?> value();"}}]}, None),
     ("What does process_payment do and how complex is it?", pipeline_result("process_payment"), "metrics_missing"),
     ("What does process_payment do and how complex is it?",
      pipeline_result("process_payment", metrics_results={"available": True}), None),

@@ -3,6 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.evidence.schemas import Evidence, GraphRelation
+from app.services.evidence_service import short_symbol_name
 from app.tools.base import ToolContext, ToolFailure, ToolResult, ToolSpec, call_signature, safe_relative_path, safe_symbol
 from app.tools.code_graph import CallEdge, CodeGraph, SymbolNode, TypeEdge, get_code_graph
 
@@ -146,20 +147,23 @@ def _relation_lines(evidence: list[Evidence], limit: int = 12) -> str:
 MAX_CLASS_MEMBERS = 12
 
 
-def _callable_roots(graph: CodeGraph, symbol: str) -> tuple[list[SymbolNode], int]:
+def _callable_roots(graph: CodeGraph, symbol: str, outgoing: bool = True) -> tuple[list[SymbolNode], int]:
     nodes = _roots(graph, symbol)
-    callables = [n for n in nodes if n.kind in ("function", "method")]
+    class_names = {n.name for n in nodes if n.kind == "class"}
+    callables = [n for n in nodes if n.kind in ("function", "method") and short_symbol_name(n.name) not in class_names]
     if callables:
         return callables, MAX_AMBIGUOUS_ROOTS
     members = [m for cls in nodes if cls.kind == "class" for m in graph.members(cls)]
     if not members:
         raise ToolFailure("not_found", f"'{symbol}' has no functions or methods in the knowledge graph")
+    edges = graph.out_edges if outgoing else graph.in_edges
+    members.sort(key=lambda m: -len(edges.get(m.id, {})))
     return members, MAX_CLASS_MEMBERS
 
 
 async def _neighbors(ctx: ToolContext, args: SymbolDepthArgs, tool: str, outgoing: bool) -> ToolResult:
     graph = await get_code_graph(ctx)
-    roots, explore = _callable_roots(graph, args.symbol)
+    roots, explore = _callable_roots(graph, args.symbol, outgoing)
     via_class = explore == MAX_CLASS_MEMBERS
     depth = min(args.depth, ctx.config.max_graph_depth)
     group = call_signature(tool, args)

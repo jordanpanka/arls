@@ -221,7 +221,7 @@ def _check(requirement: Requirement, evidence: list[Evidence], tool_log: list[di
     if kind in ("dependency_relations", "impact_relations"):
         tools = RELATION_TOOLS if kind == "dependency_relations" else IMPACT_TOOLS
         anchors = [target] if target else _hotspot_symbols(evidence)
-        explored = [e for e in evidence if set(e.produced_by) & tools]
+        explored = [e for e in evidence if set(e.produced_by) & tools and e.certainty != "unresolved"]
         if anchors:
             hits = [
                 e for e in explored

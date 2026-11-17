@@ -58,6 +58,42 @@ def test_hungarian_question_uses_both_languages():
     assert ("impact_relations", "processPayment") in kinds(impact)
 
 
+@pytest.mark.parametrize("question", [
+    "Which statements does BlockJUnit4ClassRunner wrap around a single test method, and in which order are they applied?",
+    "How does a thrown test exception propagate from Statement.evaluate() to a Failure notification?",
+    "Trace the execution path from JUnitCore.run(Request) to the runner and the final Result object.",
+    "Milyen sorrendben futnak le a BlockJUnit4ClassRunner utasításai?",
+])
+def test_execution_order_questions_need_call_relations(question):
+    analysis = analyze_question(question)
+    assert "call_flow" in analysis.intents
+    target = analysis.targets[0]
+    assert ("definition_code", target) in kinds(analysis)
+    assert ("dependency_relations", target) in kinds(analysis)
+
+
+def test_execution_order_is_not_answered_by_reading_part_of_the_class():
+    analysis = analyze_question(
+        "Which statements does BlockJUnit4ClassRunner wrap around a single test method, and in which order are they applied?")
+    path = "src/main/java/org/junit/runners/BlockJUnit4ClassRunner.java"
+    found = symbol("BlockJUnit4ClassRunner", path, 63, 474)
+    code = Evidence(source_type="code_range", repository_snapshot=SNAP, file_path=path, start_line=63, end_line=262,
+                    content="public class BlockJUnit4ClassRunner ...", produced_by=["read_code"])
+    callee = Evidence(
+        source_type="graph_relation", repository_snapshot=SNAP, file_path=path, start_line=303,
+        produced_by=["get_callees"], certainty="direct",
+        relation=GraphRelation(source=f"{path}::method::BlockJUnit4ClassRunner.methodBlock@303",
+                               target=f"{path}::method::BlockJUnit4ClassRunner.withBefores@380", type="CALLS",
+                               source_label="BlockJUnit4ClassRunner.methodBlock",
+                               target_label="BlockJUnit4ClassRunner.withBefores", source_path=path, source_line=303),
+    )
+    without = evaluate_sufficiency(analysis, [found, code], [], SNAP, SufficiencyThresholds(), ALL_TOOLS, True, True)
+    assert "dependency_relations:BlockJUnit4ClassRunner" in without.missing
+    assert not without.sufficient
+    complete = evaluate_sufficiency(analysis, [found, code, callee], [], SNAP, SufficiencyThresholds(), ALL_TOOLS, True, True)
+    assert "dependency_relations:BlockJUnit4ClassRunner" in complete.satisfied
+
+
 def test_identifier_extraction():
     targets, files = extract_targets("Does `PaymentService.process` call charge_card() in src/pay/service.py, e.g. retries?")
     assert "PaymentService.process" in targets

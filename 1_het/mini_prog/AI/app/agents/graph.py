@@ -7,7 +7,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, StateGraph
 
 from app.agents.config import AgentConfig
-from app.agents.planner import PlanOutcome, fallback_calls, parse_plan, validate_calls
+from app.agents.planner import SEED_PHASES, PlanOutcome, fallback_calls, parse_plan, seed_calls, validate_calls
 from app.agents.prompts import (
     ANSWER_PROMPT,
     CHANGE_PLAN_PROMPT,
@@ -32,7 +32,7 @@ from app.evidence.sufficiency import (
     parse_llm_hints,
 )
 from app.evidence.verifier import CITATION, llm_verification_prompt, verify_answer
-from app.services.ollama_call import LlmResult, call_llm_with_usage
+from app.services.ollama_call import LlmResult, call_llm_with_usage, usage_counts
 from app.services.rag_graph import (
     FALLBACK_CLASSIFICATION,
     METRICS_RULES,
@@ -88,18 +88,26 @@ async def _ask(runtime: AgentRuntime, state: AgentState, prompt: str, json_mode:
         result = await asyncio.wait_for(runtime.deps.llm(prompt, json_mode, timeout), timeout=timeout)
     except Exception as e:
         runtime.llm_errors.append(type(e).__name__)
-        return None, {"llm_calls": 1}
-    return result, {
-        "llm_calls": 1,
-        "input_tokens": result.input_tokens,
-        "output_tokens": result.output_tokens,
-    }
+        return None, usage_counts(None)
+    return result, usage_counts(result)
+
+
+def _planner_iterations(state: AgentState) -> int:
+    return (state.get("iteration") or 0) - (state.get("seed_iterations") or 0)
+
+
+def _planner_tool_calls(state: AgentState) -> int:
+    return (state.get("tool_calls") or 0) - (state.get("seed_tool_calls") or 0)
+
+
+def _seed_pending(state: AgentState, config: AgentConfig) -> bool:
+    return config.enable_seed_retrieval and (state.get("seed_phase") or 0) < SEED_PHASES
 
 
 def _budget_stop(state: AgentState, config: AgentConfig) -> str | None:
-    if (state.get("iteration") or 0) >= config.effective_max_iterations:
+    if _planner_iterations(state) >= config.effective_max_iterations:
         return "max_iterations"
-    if (state.get("tool_calls") or 0) >= config.max_tool_calls:
+    if _planner_tool_calls(state) >= config.max_tool_calls:
         return "max_tool_calls"
     if _tokens(state) >= config.token_budget:
         return "token_budget"
@@ -191,6 +199,7 @@ async def analyze_question(state: AgentState, config: RunnableConfig) -> dict:
         "language": classification["language"],
         "language_name": classification["language_name"],
         "question_type": classification["question_type"],
+        "search_vectors": classification.get("search_vectors"),
         "analysis": analysis.to_dict(),
         "complexity": analysis.complexity,
     }
@@ -207,7 +216,11 @@ def _needs_section(state: AgentState, runtime: AgentRuntime, statuses: list[Requ
         lines.append(f"- [{status.status}] {status.description}{note}")
     hints = state.get("missing_information") or []
     lines += [f"- [hint] {h}" for h in hints if h not in lines]
-    return "\n".join(lines) if len(lines) > 1 else "OPEN NEEDS: none"
+    if len(lines) > 1:
+        return "\n".join(lines)
+    return ("OPEN NEEDS: none found by the automatic check. Confirm that the collected evidence covers every part "
+            "of the question (each named class or method, both ends of a described path, every requested item) "
+            "before setting done.")
 
 
 def _calls_section(tool_log: list[dict]) -> str:
@@ -238,21 +251,49 @@ async def plan_tools(state: AgentState, config: RunnableConfig) -> dict:
 
     store = EvidenceStore.from_state(state)
     analysis = _analysis(state)
+    question_en = state.get("question_en") or state["question"]
+
+    seed_update: dict = {}
+    phase = state.get("seed_phase") or 0
+    while _seed_pending({**state, "seed_phase": phase}, cfg):
+        phase += 1
+        seed_update["seed_phase"] = phase
+        raw = seed_calls(phase, analysis, state.get("question_type", "general"), state.get("search_vectors"), store.all(), question_en)
+        calls, rejected, duplicates = validate_calls(raw, runtime.registry, set(state.get("call_signatures") or []), len(raw))
+        if calls:
+            return {
+                **seed_update,
+                "pending_calls": [{**c.__dict__, "seed": True} for c in calls],
+                "planner_done": False,
+                "planner_log": [{
+                    "iteration": (state.get("iteration") or 0) + 1,
+                    "proposed": [c.tool for c in calls],
+                    "done": False,
+                    "fallback": False,
+                    "seed": True,
+                    "reason": f"seed retrieval phase {phase}",
+                    "rejected": rejected,
+                    "duplicates": duplicates,
+                }],
+            }
+    if cfg.enable_seed_retrieval:
+        seed_update["seed_reviewed"] = True
+
     statuses = None
     if cfg.enable_sufficiency:
         statuses = _statuses(state) or _current_sufficiency(state, runtime, store).requirements
 
-    limit = min(cfg.max_calls_per_iteration, cfg.max_tool_calls - (state.get("tool_calls") or 0))
+    limit = min(cfg.max_calls_per_iteration, cfg.max_tool_calls - _planner_tool_calls(state))
     prompt = PLANNER_PROMPT.format(
         max_calls=limit,
-        question=state.get("question_en") or state["question"],
+        question=question_en,
         question_type=state.get("question_type", "general"),
         targets=", ".join(analysis.targets + analysis.files) or "none detected",
         needs=_needs_section(state, runtime, statuses),
         evidence=_evidence_section(store),
         calls=_calls_section(state.get("tool_log") or []),
-        iterations=cfg.effective_max_iterations - (state.get("iteration") or 0),
-        tool_calls=cfg.max_tool_calls - (state.get("tool_calls") or 0),
+        iterations=cfg.effective_max_iterations - _planner_iterations(state),
+        tool_calls=cfg.max_tool_calls - _planner_tool_calls(state),
         catalogue=catalogue_text(runtime.registry),
     )
     result, usage = await _ask(runtime, state, prompt, json_mode=True)
@@ -291,16 +332,19 @@ async def plan_tools(state: AgentState, config: RunnableConfig) -> dict:
     }
 
     if not outcome.calls:
-        if outcome.done:
+        if cfg.enable_sufficiency and state.get("evidence_sufficient"):
+            stop_reason = "evidence_sufficient"
+        elif outcome.done:
             stop_reason = "planner_done"
         elif outcome.duplicates:
             stop_reason = "no_progress"
         else:
             stop_reason = "no_applicable_tools"
-        return {**usage, "pending_calls": [], "planner_done": outcome.done, "planner_log": [entry], "stop_reason": stop_reason}
+        return {**usage, **seed_update, "pending_calls": [], "planner_done": outcome.done, "planner_log": [entry], "stop_reason": stop_reason}
 
     return {
         **usage,
+        **seed_update,
         "pending_calls": [c.__dict__ for c in outcome.calls],
         "planner_done": False,
         "planner_log": [entry],
@@ -316,6 +360,7 @@ async def execute_tools(state: AgentState, config: RunnableConfig) -> dict:
     ctx = runtime.tool_ctx
     ctx.deadline = state.get("deadline")
     calls = state.get("pending_calls") or []
+    seeded = sum(1 for c in calls if c.get("seed"))
     iteration = (state.get("iteration") or 0) + 1
     started = time.perf_counter()
 
@@ -381,6 +426,8 @@ async def execute_tools(state: AgentState, config: RunnableConfig) -> dict:
         "tool_log": log,
         "rejected_evidence": rejected,
         "tool_calls": (state.get("tool_calls") or 0) + len(calls),
+        "seed_tool_calls": (state.get("seed_tool_calls") or 0) + seeded,
+        "seed_iterations": (state.get("seed_iterations") or 0) + int(bool(calls) and seeded == len(calls)),
         "call_signatures": (state.get("call_signatures") or []) + [c["signature"] for c in calls],
         "iteration": iteration,
         "new_evidence_count": new_count,
@@ -448,6 +495,11 @@ async def check_sufficiency(state: AgentState, config: RunnableConfig) -> dict:
 
 def route_after_sufficiency(state: AgentState, config: RunnableConfig) -> str:
     runtime = _runtime(config)
+    if _budget_stop(state, runtime.config) is None and (
+        _seed_pending(state, runtime.config)
+        or (runtime.config.enable_seed_retrieval and not state.get("seed_reviewed"))
+    ):
+        return "plan_tools"
     if runtime.config.enable_sufficiency:
         return "plan_tools" if (state.get("sufficiency") or {}).get("should_continue") else "build_context"
     return "build_context" if _budget_stop(state, runtime.config) else "plan_tools"
@@ -491,8 +543,10 @@ async def build_context(state: AgentState, config: RunnableConfig) -> dict:
     statuses = _statuses(state)
     if statuses is None and store.items:
         statuses = _current_sufficiency(state, runtime, store).requirements
+    started = time.perf_counter()
     budget = runtime.config.max_context_chars
     blocks: list[str] = []
+    included: list[str] = []
     used = 0
     for alias in _ranked_aliases(store, statuses):
         items = store.evidence_for(alias)
@@ -502,8 +556,14 @@ async def build_context(state: AgentState, config: RunnableConfig) -> dict:
         if used + len(block) > budget:
             break
         blocks.append(block)
+        included.append(alias)
         used += len(block) + 2
-    return {"context": "\n\n".join(blocks), "open_gaps": _gaps(state)}
+    return {
+        "context": "\n\n".join(blocks),
+        "open_gaps": _gaps(state),
+        "context_aliases": included,
+        "context_time_ms": (time.perf_counter() - started) * 1000,
+    }
 
 
 async def generate_answer(state: AgentState, config: RunnableConfig) -> dict:
@@ -640,6 +700,33 @@ def _status(state: AgentState, config: AgentConfig) -> str:
     return "verified" if verification.get("passed") else "partially_verified"
 
 
+def _known_tokens(state: AgentState, key: str) -> int | None:
+    calls = state.get("llm_calls") or 0
+    if calls and (state.get("llm_calls_without_usage") or 0) >= calls:
+        return None
+    return state.get(key) or 0
+
+
+def _context_evidence(state: AgentState) -> list[dict]:
+    store = EvidenceStore.from_state(state)
+    items = []
+    for alias in state.get("context_aliases") or []:
+        for e in store.evidence_for(alias):
+            items.append({
+                "alias": alias,
+                "id": e.evidence_id,
+                "source": e.source_type,
+                "path": e.file_path,
+                "symbol": e.symbol_name,
+                "kind": e.symbol_kind,
+                "start": e.start_line,
+                "end": e.end_line,
+                "score": e.retrieval_score,
+                "producedBy": e.produced_by,
+            })
+    return items
+
+
 async def finalize(state: AgentState, config: RunnableConfig) -> dict:
     runtime = _runtime(config)
     cfg = runtime.config
@@ -665,12 +752,15 @@ async def finalize(state: AgentState, config: RunnableConfig) -> dict:
         "toolCalls": state.get("tool_calls") or 0,
         "iterations": state.get("iteration") or 0,
         "llmCalls": state.get("llm_calls") or 0,
-        "inputTokens": state.get("input_tokens") or 0,
-        "outputTokens": state.get("output_tokens") or 0,
+        "inputTokens": _known_tokens(state, "input_tokens"),
+        "outputTokens": _known_tokens(state, "output_tokens"),
+        "llmCallsWithoutUsage": state.get("llm_calls_without_usage") or 0,
+        "tokenUsageComplete": not state.get("llm_calls_without_usage"),
         "estimatedCost": round(cost, 6),
         "latencyMs": round(latency_ms, 1) if latency_ms is not None else None,
         "retrievalLatencyMs": round(state.get("retrieval_time_ms") or 0, 1),
         "generationLatencyMs": round(state.get("generation_time_ms") or 0, 1),
+        "contextLatencyMs": round(state["context_time_ms"], 1) if state.get("context_time_ms") is not None else None,
         "stopReason": stop_reason,
         "questionComplexity": state.get("complexity"),
         "toolsUsed": summary["toolsUsed"],
@@ -678,9 +768,11 @@ async def finalize(state: AgentState, config: RunnableConfig) -> dict:
         "duplicateCallsSkipped": sum(p.get("duplicates", 0) for p in planner_log),
         "rejectedCalls": sum(len(p.get("rejected", [])) for p in planner_log),
         "plannerFallbacks": sum(1 for p in planner_log if p.get("fallback")),
-        "replans": max(0, len(planner_log) - 1),
+        "replans": max(0, sum(1 for p in planner_log if not p.get("seed")) - 1),
         "evidenceCount": len(state.get("evidence") or {}),
         "seededEvidence": state.get("seeded_evidence") or 0,
+        "seedPhases": state.get("seed_phase") or 0,
+        "seedToolCalls": state.get("seed_tool_calls") or 0,
         "sufficiency": {k: sufficiency.get(k) for k in (
             "sufficient", "coverage", "effective_coverage", "relevance", "traceability",
             "consistent", "satisfied", "missing", "unavailable", "reason",
@@ -728,6 +820,8 @@ async def finalize(state: AgentState, config: RunnableConfig) -> dict:
                  "start": e.get("start_line"), "end": e.get("end_line"), "producedBy": e.get("produced_by")}
                 for eid, e in (state.get("evidence") or {}).items()
             ],
+            "contextEvidence": _context_evidence(state),
+            "contextText": state.get("context") or "",
         })
 
     return {"status": status, "stop_reason": stop_reason, "execution": execution}
@@ -803,7 +897,7 @@ def initial_state(run_id: str, mode: str, ablation: str | None, experiment_id: s
     if seed_hits:
         state["seed_hits"] = seed_hits
     if usage:
-        state.update({k: usage[k] for k in ("llm_calls", "input_tokens", "output_tokens") if k in usage})
+        state.update({k: usage[k] for k in ("llm_calls", "input_tokens", "output_tokens", "llm_calls_without_usage") if k in usage})
     return state
 
 
@@ -813,5 +907,5 @@ async def run_agent(question: str, scope: Scope, mode: str, config: AgentConfig,
                     seed_hits: list[dict] | None = None) -> AgentState:
     runtime = make_runtime(deps, config, scope)
     state = initial_state(run_id, mode, ablation, experiment_id, question, scope, config, classification, route, usage, seed_hits)
-    recursion_limit = 12 + 3 * config.effective_max_iterations + 3 * config.max_verify_revisions
+    recursion_limit = 12 + 3 * (config.effective_max_iterations + SEED_PHASES) + 3 * config.max_verify_revisions
     return await agent_graph.ainvoke(state, config={"configurable": {"runtime": runtime}, "recursion_limit": recursion_limit})
